@@ -1,0 +1,100 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans:
+    'Inter', ui-sans-serif, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  /* EASY GAS brand red */
+  --color-brand-50: #fdeeee;
+  --color-brand-100: #fbd8d9;
+  --color-brand-200: #f5aeb0;
+  --color-brand-300: #ee7f83;
+  --color-brand-400: #e94e55;
+  --color-brand-500: #e4232b;
+  --color-brand-600: #c81e25;
+  --color-brand-700: #a8161d;
+  --color-brand-800: #851217;
+  --color-brand-900: #620d11;
+
+  /* Graphite scale */
+  --color-ink-50: #f4f4f5;
+  --color-ink-100: #e4e5e8;
+  --color-ink-200: #c6c8cd;
+  --color-ink-300: #9ba1ab;
+  --color-ink-400: #6b7280;
+  --color-ink-500: #4b515b;
+  --color-ink-600: #33383f;
+  --color-ink-700: #22262c;
+  --color-ink-800: #16191e;
+  --color-ink-900: #0c0e11;
+
+  /* Warm white */
+  --color-cream-50: #fbfaf8;
+  --color-cream-100: #f7f5f2;
+  --color-cream-200: #efece7;
+  --color-cream-300: #e4e1dc;
+}
+
+/* Theme tokens — light by default, .theme-dark overrides (auth screens). */
+:root {
+  --bg: var(--color-cream-100);
+  --surface: #ffffff;
+  --surface-2: var(--color-cream-200);
+  --text-1: #14161a;
+  --text-2: #5a616c;
+  --border-1: #e4e1dc;
+  --field-bg: #ffffff;
+  --field-border: #d9d5cf;
+  --field-placeholder: #a5a9b0;
+}
+
+.theme-dark {
+  --bg: var(--color-ink-900);
+  --surface: rgba(255, 255, 255, 0.04);
+  --surface-2: rgba(255, 255, 255, 0.07);
+  --text-1: #f5f3f0;
+  --text-2: #9ba1ab;
+  --border-1: rgba(255, 255, 255, 0.1);
+  --field-bg: rgba(255, 255, 255, 0.05);
+  --field-border: rgba(255, 255, 255, 0.14);
+  --field-placeholder: #6b7280;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text-1);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Premium auth backdrop: graphite with a restrained red glow + fine grid. */
+.auth-backdrop {
+  background-color: var(--color-ink-900);
+  background-image:
+    radial-gradient(60rem 40rem at 85% -10%, rgba(228, 35, 43, 0.14), transparent 60%),
+    radial-gradient(50rem 36rem at -15% 110%, rgba(228, 35, 43, 0.08), transparent 55%),
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size:
+    auto,
+    auto,
+    44px 44px,
+    44px 44px;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow:
+    0 24px 60px -24px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
