@@ -1,4 +1,4 @@
-import { api } from './client';
+import { api, setCsrfToken } from './client';
 import type { User } from '../types/auth';
 
 export interface LoginInput {
@@ -19,22 +19,31 @@ export interface RegisterInput {
 
 export async function login(input: LoginInput): Promise<User> {
   const { data } = await api.post('/auth/login', input);
+  setCsrfToken(data.csrfToken ?? null);
   return data.user;
 }
 
 export async function logout(): Promise<void> {
-  await api.post('/auth/logout');
+  try {
+    await api.post('/auth/logout');
+  } finally {
+    setCsrfToken(null);
+  }
 }
 
 /** Returns the current user, or null when not authenticated (401). */
 export async function fetchMe(): Promise<User | null> {
   try {
     const { data } = await api.get('/auth/me');
+    setCsrfToken(data.csrfToken ?? null);
     return data.user;
   } catch (err: unknown) {
     if (err && typeof err === 'object' && 'response' in err) {
       const status = (err as { response?: { status?: number } }).response?.status;
-      if (status === 401) return null;
+      if (status === 401) {
+        setCsrfToken(null);
+        return null;
+      }
     }
     throw err;
   }

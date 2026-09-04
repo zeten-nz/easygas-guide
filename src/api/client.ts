@@ -6,6 +6,26 @@ export const api = axios.create({
   timeout: 20_000,
 });
 
+/**
+ * Session-bound CSRF token (Phase 10A). Issued by the login and /auth/me
+ * responses, kept ONLY in memory (never localStorage/cookies) and attached to
+ * every state-changing request as x-csrf-token. On page reload the /auth/me
+ * bootstrap re-issues it before any mutation can happen.
+ */
+let csrfToken: string | null = null;
+
+export function setCsrfToken(token: string | null): void {
+  csrfToken = token;
+}
+
+api.interceptors.request.use((config) => {
+  const method = (config.method ?? 'get').toUpperCase();
+  if (csrfToken && method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+    config.headers.set('x-csrf-token', csrfToken);
+  }
+  return config;
+});
+
 export interface ApiErrorPayload {
   code: string;
   message: string;
