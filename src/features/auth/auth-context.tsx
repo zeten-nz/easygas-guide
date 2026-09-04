@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as authApi from '../../api/auth.api';
 import type { User } from '../../types/auth';
@@ -32,6 +32,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [queryClient],
   );
+
+  // Phase 10C: the API client fires this once on a definitive 401 (session
+  // idle/absolute expiry, revocation, or a confirmed replay). Clear cached auth
+  // state so the route guards redirect to login exactly once (no redirect loop).
+  // A transient/offline failure has no response and never fires this event, so
+  // unsaved work is not discarded on a flaky network.
+  useEffect(() => {
+    const onExpired = (): void => {
+      if (queryClient.getQueryData(AUTH_ME_KEY)) {
+        queryClient.setQueryData(AUTH_ME_KEY, null);
+        queryClient.removeQueries({ predicate: (q) => q.queryKey[0] !== 'auth' });
+      }
+    };
+    window.addEventListener('easygas:session-expired', onExpired);
+    return () => window.removeEventListener('easygas:session-expired', onExpired);
+  }, [queryClient]);
 
   const logout = useCallback(async () => {
     try {
