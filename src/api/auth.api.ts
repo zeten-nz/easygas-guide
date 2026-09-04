@@ -19,7 +19,7 @@ export interface RegisterInput {
 
 export async function login(input: LoginInput): Promise<User> {
   const { data } = await api.post('/auth/login', input);
-  setCsrfToken(data.csrfToken ?? null);
+  setCsrfToken(data.csrfToken ?? null, data.rotationSeq);
   return data.user;
 }
 
@@ -35,7 +35,7 @@ export async function logout(): Promise<void> {
 export async function fetchMe(): Promise<User | null> {
   try {
     const { data } = await api.get('/auth/me');
-    setCsrfToken(data.csrfToken ?? null);
+    setCsrfToken(data.csrfToken ?? null, data.rotationSeq);
     return data.user;
   } catch (err: unknown) {
     if (err && typeof err === 'object' && 'response' in err) {

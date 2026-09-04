@@ -13,9 +13,36 @@ export const api = axios.create({
  * bootstrap re-issues it before any mutation can happen.
  */
 let csrfToken: string | null = null;
+/**
+ * Phase 10C: the session token rotates server-side, and the CSRF token is
+ * HMAC(cookie), so it changes on rotation. Each authenticated response carries
+ * the current token and a monotonic rotation sequence; we only adopt a token
+ * whose sequence is NEWER than the one we hold, so an out-of-order (slower,
+ * older) parallel response can never overwrite a newer CSRF token.
+ */
+let csrfRotationSeq = -1;
 
-export function setCsrfToken(token: string | null): void {
+export function setCsrfToken(token: string | null, seq?: number): void {
   csrfToken = token;
+  if (token === null) {
+    csrfRotationSeq = -1; // logout / definitive expiry resets the baseline
+  } else if (typeof seq === 'number' && Number.isFinite(seq)) {
+    csrfRotationSeq = seq; // login / /auth/me set the baseline sequence
+  }
+}
+
+/** Adopts a rotated CSRF token from a response, guarding against older ones. */
+function adoptRotatedCsrf(headers: unknown): void {
+  const h = headers as Record<string, string | undefined> | undefined;
+  const token = h?.['x-csrf-token'];
+  const seqRaw = h?.['x-session-rotation'];
+  if (typeof token === 'string' && token.length > 0 && seqRaw !== undefined) {
+    const seq = Number(seqRaw);
+    if (Number.isFinite(seq) && seq > csrfRotationSeq) {
+      csrfToken = token;
+      csrfRotationSeq = seq;
+    }
+  }
 }
 
 api.interceptors.request.use((config) => {
@@ -25,6 +52,30 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+api.interceptors.response.use(
+  (res) => {
+    adoptRotatedCsrf(res.headers);
+    return res;
+  },
+  (err: unknown) => {
+    if (err instanceof AxiosError && err.response) {
+      // A response arrived (not a network/offline error) — adopt any rotated CSRF.
+      adoptRotatedCsrf(err.response.headers);
+      if (err.response.status === 401) {
+        // Definitive auth failure (distinct from a transient/offline error, which
+        // has no response). Drop CSRF state and notify the app once; the route
+        // guards perform the single redirect to login — no redirect loop.
+        csrfToken = null;
+        csrfRotationSeq = -1;
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('easygas:session-expired'));
+        }
+      }
+    }
+    return Promise.reject(err);
+  },
+);
 
 export interface ApiErrorPayload {
   code: string;
