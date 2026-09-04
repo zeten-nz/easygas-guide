@@ -9,7 +9,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { Modal } from '../../components/ui/Modal';
 import { useAuth } from '../../features/auth/auth-context';
 import * as jobsApi from '../../api/jobs.api';
-import { getApiError } from '../../api/client';
+import { getApiError, getUploadError } from '../../api/client';
 import { can } from '../../lib/permissions';
 import type { Job } from '../../types/entities';
 import { cn } from '../../lib/utils';
@@ -316,10 +316,15 @@ function SignaturePad({ jobId, onSaved }: { jobId: number; onSaved: () => void }
   const uploadMutation = useMutation({
     mutationFn: (blob: Blob) => jobsApi.uploadSignature(jobId, blob),
     onSuccess: () => {
+      // Success only after the server confirms a READY signature.
       toast.success('Mijoz imzosi saqlandi');
       onSaved();
     },
-    onError: (err) => toast.error(getApiError(err).message),
+    onError: (err) => {
+      const { message, retryable } = getUploadError(err);
+      // The canvas ink is preserved (we never clear on failure) so a retry needs no re-signing.
+      toast.error(message, retryable ? { description: 'Imzo saqlanmadi — qaytadan urinishingiz mumkin.' } : undefined);
+    },
   });
 
   const ctx = () => {
@@ -349,8 +354,10 @@ function SignaturePad({ jobId, onSaved }: { jobId: number; onSaved: () => void }
   };
 
   const save = () => {
+    // Guard the async toBlob gap so a double tap cannot start two uploads.
+    if (uploadMutation.isPending) return;
     canvasRef.current!.toBlob((blob) => {
-      if (blob) uploadMutation.mutate(blob);
+      if (blob && !uploadMutation.isPending) uploadMutation.mutate(blob);
     }, 'image/png');
   };
 

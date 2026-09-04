@@ -32,6 +32,23 @@ export interface ApiErrorPayload {
   details?: { field: string; message: string }[];
 }
 
+/**
+ * Phase 10B: classifies an evidence-upload failure for the UI. Storage/network
+ * failures are retryable (the file was never accepted, safe to resend); a
+ * validation rejection (wrong type, too large) is permanent until the user
+ * picks a different file.
+ */
+export function getUploadError(err: unknown): { message: string; retryable: boolean } {
+  const e = getApiError(err);
+  const permanentCodes = ['INVALID_FILE_TYPE', 'IMAGE_TOO_LARGE', 'FILE_TOO_LARGE', 'NO_FILE'];
+  const retryableCodes = ['STORAGE_UNAVAILABLE', 'NETWORK_ERROR', 'STEP_STATE_CHANGED', 'JOB_STATE_CHANGED', 'UNKNOWN'];
+  const retryable = retryableCodes.includes(e.code) || !permanentCodes.includes(e.code);
+  return {
+    message: retryable ? `${e.message}${/qayta urin/i.test(e.message) ? '' : " — qayta urinib ko'ring"}` : e.message,
+    retryable,
+  };
+}
+
 /** Extracts the server's structured error, falling back to a generic Uzbek message. */
 export function getApiError(err: unknown): ApiErrorPayload {
   if (err instanceof AxiosError) {

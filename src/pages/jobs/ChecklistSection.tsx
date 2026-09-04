@@ -26,7 +26,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useAuth } from '../../features/auth/auth-context';
 import * as jobsApi from '../../api/jobs.api';
 import { fetchAssignableTemplates } from '../../api/templates.api';
-import { getApiError } from '../../api/client';
+import { getApiError, getUploadError } from '../../api/client';
 import { can } from '../../lib/permissions';
 import type { Job, JobStep } from '../../types/entities';
 import { cn } from '../../lib/utils';
@@ -443,10 +443,14 @@ function PhotoUploader({ job, step, onUploaded }: { job: Job; step: JobStep; onU
   const uploadMutation = useMutation({
     mutationFn: (file: File) => jobsApi.uploadStepPhoto(job.id, step.id, file),
     onSuccess: () => {
+      // Success only after the server confirms READY (201) — a stored, verified object.
       toast.success('Rasm yuklandi');
       onUploaded();
     },
-    onError: (err) => toast.error(getApiError(err).message),
+    onError: (err) => {
+      const { message, retryable } = getUploadError(err);
+      toast.error(message, retryable ? { description: "Fayl saqlanmadi — qaytadan yuborishingiz mumkin." } : undefined);
+    },
   });
 
   const enough = step.photoProgress.have >= step.photoProgress.need;
