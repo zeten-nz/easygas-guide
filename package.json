@@ -11,6 +11,7 @@
     "test": "npm run test:unit && npm run test:component",
     "test:unit": "tsx --test src/**/*.test.ts",
     "test:component": "vitest run",
+    "test:ci-assert": "node --test scripts/assert-e2e-complete.test.mjs",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui",

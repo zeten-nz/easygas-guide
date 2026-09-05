@@ -91,9 +91,19 @@ Never point at production; never send real SMS; artifacts (`test-results/`, `tes
 
 The tokenless cross-repo `e2e-fullstack` workflow runs this suite on GitHub-hosted Actions (client
 PR × server main, and the mirror server PR × client main). It **fails loudly** on: zero specs
-discovered, **any** spec skipped or zero executed (`scripts/assert-e2e-complete.mjs` over the
-Playwright JSON report), a backend that never becomes ready, failed migrations, an inactive risk
-policy, or unexpected severe console/API errors. See `server/docs/CI-RELEASE-10F.md` §C.
+discovered, **any** spec skipped/failed/flaky/interrupted or zero executed
+(`scripts/assert-e2e-complete.mjs` over the Playwright JSON report — reporting the *real* reason,
+e.g. "N failed"), a backend that never becomes ready, failed migrations, an inactive risk policy, or
+unexpected severe console/API errors. See `server/docs/CI-RELEASE-10F.md` §C and §G.
+
+**Preflight & the coordinated cross-repo order.** Playwright's `global-setup` (`e2e/global-setup.ts`)
+hits the harness's unauthenticated `GET /api/v1/e2e/preflight` before any browser opens; if the
+server under test lacks the Phase 10F fixtures (e.g. an OLD server `main` from before 10F merged —
+no preflight route → 404) it fails fast with a clear message instead of 12 opaque "job not found"
+failures. Because the check tests **the other repo's `main`**, the coordinated recovery order is:
+merge the **server** Phase 10F first, then the client hotfix E2E (now against the updated server
+`main`) goes green — no stale ref is hard-coded, and `workflow_dispatch` can target a branch
+explicitly when needed.
 
 > **Status:** run end-to-end **locally** (twice, both profiles, all specs green). The branch is
 > unpushed, so there is no GitHub Actions run yet — _locally validated, awaiting first GitHub run._

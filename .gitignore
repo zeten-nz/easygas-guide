@@ -19,6 +19,8 @@ test-results.json
 /blob-report/
 /playwright/.cache/
 .last-run.json
+playwright-e2e.log
+playwright-e2e.redacted.log
 
 # Editor directories and files
 .vscode/*

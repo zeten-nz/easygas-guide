@@ -5,7 +5,11 @@
 # bundle-size budget, dependency audits, Playwright spec discovery and browser
 # install/cache. The full-stack browser E2E (which needs the server repo) lives
 # in e2e-fullstack.yml (cross-repo) — it is never silently skipped nor counted in
-# this gate. Action tags are stable releases; pin to a commit SHA in your org.
+# this gate.
+#
+# Official actions are SHA-PINNED to their verified latest release (the `# vX.Y.Z`
+# comment documents the tag) so a re-pointed tag cannot change what runs, and so
+# no deprecated runtime (e.g. actions/cache@v4.1.2, rejected by GitHub) remains.
 name: client-ci
 
 on:
@@ -26,8 +30,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4.2.2
-      - uses: actions/setup-node@v4.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
           cache: npm
@@ -42,6 +46,8 @@ jobs:
           npx tsc -p tsconfig.test.json --noEmit
       - name: Unit + component tests
         run: npm test
+      - name: E2E result-guard unit tests (assert-e2e-complete)
+        run: npm run test:ci-assert
       - name: Production build
         run: npm run build
       - name: Bundle-size budget
@@ -51,7 +57,7 @@ jobs:
       - name: Full dependency audit (report only — dev toolchain advisories)
         run: npm audit || true
       - name: Cache Playwright browsers
-        uses: actions/cache@v4.1.2
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
@@ -67,6 +73,6 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: actionlint (self-validate workflows)
         uses: raven-actions/actionlint@v2
