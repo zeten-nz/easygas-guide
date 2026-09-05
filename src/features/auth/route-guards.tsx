@@ -1,6 +1,8 @@
+import { Suspense } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from './auth-context';
 import { FullScreenLoader } from '../../components/ui/FullScreenLoader';
+import { RouteErrorBoundary } from '../../app/RouteErrorBoundary';
 import { can } from '../../lib/permissions';
 import type { Permission } from '../../types/auth';
 
@@ -24,7 +26,13 @@ export function GuestRoute() {
 
   if (isLoading) return <FullScreenLoader />;
   if (user) return <Navigate to="/app" replace />;
-  return <Outlet />;
+  return (
+    <RouteErrorBoundary>
+      <Suspense fallback={<FullScreenLoader />}>
+        <Outlet />
+      </Suspense>
+    </RouteErrorBoundary>
+  );
 }
 
 export function PermissionRoute({ permission }: { permission: Permission }) {

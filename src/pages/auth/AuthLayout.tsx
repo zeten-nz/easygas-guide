@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Send } from 'lucide-react';
-import { Logo } from '../../components/ui/Logo';
+import { Brand } from '../../components/ui/Brand';
 
 const SUPPORT_URL = import.meta.env.VITE_SUPPORT_URL ?? 'https://t.me/EasygasGarantbot';
 
@@ -12,8 +12,13 @@ export function AuthLayout({ children, footer }: { children: ReactNode; footer?:
   return (
     <div className="theme-dark auth-backdrop flex min-h-dvh flex-col items-center justify-center px-4 py-8">
       <main className="w-full max-w-[420px]">
-        <div className="mb-8 flex flex-col items-center gap-3">
-          <Logo size="lg" />
+        <div className="mb-8 flex flex-col items-center gap-4">
+          {/* Real stacked logo on a light "brand plate" — the assets are made for
+              light surfaces; this shows them correctly on the dark auth backdrop
+              without recolouring them. Above the fold → eager. */}
+          <div className="rounded-3xl bg-white p-3 shadow-[0_18px_40px_-18px_rgba(0,0,0,0.6)]">
+            <Brand variant="stacked" height={92} priority />
+          </div>
           <p className="text-center text-[13px] font-medium uppercase tracking-[0.18em] text-[var(--text-2)]">
             Safety Technology
           </p>

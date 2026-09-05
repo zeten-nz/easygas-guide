@@ -24,12 +24,14 @@ test('shows an empty state when no jobs are assigned', async () => {
   expect(await screen.findByText(/hali ish biriktirilmagan/i)).toBeInTheDocument();
 });
 
-// NOTE: the error-STATE render (Alert + retry) is exercised via manual/browser
-// verification. A rejected-query component test is intentionally omitted here:
-// react-query's internal fetch promise rejects late and vitest ties that
-// artifact to the test even though the error is consumed and the UI renders
-// correctly. The error-classification LOGIC is covered by getUploadError/
-// getApiError and the safety logic suite (npm run test:unit).
+// The routed error-STATE + retry render is asserted on a real screen in
+// RiskPanel.test.tsx ("renders an error state when the risk query fails"). It is
+// NOT duplicated here because MyJobsPage uses `placeholderData: keepPreviousData`,
+// which makes react-query's rejected fetch settle a tick AFTER Vitest's
+// unhandled-rejection checkpoint — Vitest then ties that artifact to the running
+// test even though the UI consumes the error and renders correctly. The error
+// scenario is covered (not omitted over a late rejected promise); it is placed on
+// a screen without the keepPreviousData confound.
 
 test('flags a LEGACY_UNASSIGNED job distinctly', async () => {
   mockMyJobs.mockResolvedValue({ items: [{ id: 9, status: 'IN_PROGRESS', cycle: 1, assignment_status: 'LEGACY_UNASSIGNED', plate_number: '01B', customer_name: 'X' }], total: 1 });

@@ -6,20 +6,25 @@ import { ROLE_LABELS, type Permission, type RoleCode } from '../../types/auth';
 import { displayPhone } from '../../lib/phone';
 
 const QUICK_LINKS: { to: string; label: string; permission: Permission }[] = [
+  { to: '/app/my-jobs', label: 'Mening ishlarim', permission: 'checklist.execute' },
   { to: '/app/jobs', label: 'Ishlar', permission: 'jobs.view' },
   { to: '/app/customers', label: 'Mijozlar', permission: 'customers.view' },
   { to: '/app/vehicles', label: 'Avtomobillar', permission: 'vehicles.view' },
+  { to: '/app/admin/templates', label: 'Shablonlar', permission: 'templates.manage' },
+  { to: '/app/admin/risk-policy', label: 'Xavf siyosati', permission: 'risk.matrix.approve' },
   { to: '/app/admin/users', label: 'Foydalanuvchilar', permission: 'users.view' },
   { to: '/app/admin/branches', label: 'Filiallar', permission: 'branches.manage' },
   { to: '/app/admin/registration-requests', label: "Ro'yxatdan o'tish so'rovlari", permission: 'registration.review' },
 ];
 
+// Honest, current capability summaries (no invented analytics; each maps to a
+// screen the role can actually reach).
 const ROLE_DESCRIPTIONS: Record<RoleCode, string> = {
-  USTA: "Yangi ish ochishingiz, mijoz va avtomobillarni ro'yxatga olishingiz mumkin. Texnik checklist keyingi bosqichlarda qo'shiladi.",
-  MASTER: "Ish ochishingiz, mijoz va avtomobillarni boshqarishingiz mumkin. STOP tasdiqlash va ishlarni yopish keyingi bosqichlarda qo'shiladi.",
-  RAHBAR: "O'z filialingiz xodimlarini boshqarishingiz mumkin. KPI va servis monitoringi keyingi bosqichlarda qo'shiladi.",
-  SIFAT: "Sifat nazorati va audit imkoniyatlari keyingi bosqichlarda qo'shiladi.",
-  ADMIN: "Foydalanuvchilarni boshqarish uchun ro'yxatdan o'tish so'rovlarini ko'rib chiqishingiz mumkin.",
+  USTA: "Ish ochish, mijoz va avtomobillarni ro'yxatga olish, texnik checklistni bajarish, GPS va foto dalillar hamda mijoz imzosini olish.",
+  MASTER: "Ishlarni ochish va boshqarish, texnik biriktirish, STOP nuqtalarini tasdiqlash, xavflarni baholash va ishlarni yakunlash.",
+  RAHBAR: "O'z filialingiz xodimlari va ishlarini boshqarish, mijoz va avtomobillar ma'lumotlarini yuritish.",
+  SIFAT: "Yakunlangan ishlarni sifat nazoratidan o'tkazish, qayta ochish, xavf matritsasi siyosatini tasdiqlash.",
+  ADMIN: "Foydalanuvchilar, filiallar va ro'yxatdan o'tish so'rovlarini boshqarish; xavf siyosatini tasdiqlash.",
 };
 
 export function HomePage() {

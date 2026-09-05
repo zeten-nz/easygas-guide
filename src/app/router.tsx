@@ -1,23 +1,39 @@
+/* eslint-disable react-refresh/only-export-components --
+   Route table: the lazy route components are defined beside the router config.
+   This module exports the router (not a component) and is not a fast-refresh
+   boundary, so the fast-refresh rule does not apply here. */
+import { lazy } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { GuestRoute, PermissionRoute, ProtectedRoute } from '../features/auth/route-guards';
-import { LoginPage } from '../pages/auth/LoginPage';
-import { RegisterPage } from '../pages/auth/RegisterPage';
-import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage';
 import { AppShell } from '../pages/app/AppShell';
+// Eager: the first screens a user sees (guest login, authenticated home) and the
+// shell/guards themselves — splitting these would only add a fetch to first paint.
+import { LoginPage } from '../pages/auth/LoginPage';
 import { HomePage } from '../pages/app/HomePage';
-import { RegistrationRequestsPage } from '../pages/admin/RegistrationRequestsPage';
-import { UsersPage } from '../pages/admin/UsersPage';
-import { BranchesPage } from '../pages/admin/BranchesPage';
-import { CustomersPage } from '../pages/customers/CustomersPage';
-import { CustomerDetailPage } from '../pages/customers/CustomerDetailPage';
-import { VehiclesPage } from '../pages/vehicles/VehiclesPage';
-import { JobsPage } from '../pages/jobs/JobsPage';
-import { MyJobsPage } from '../pages/jobs/MyJobsPage';
-import { CreateJobPage } from '../pages/jobs/CreateJobPage';
-import { JobDetailPage } from '../pages/jobs/JobDetailPage';
-import { RiskPolicyPage } from '../pages/admin/RiskPolicyPage';
-import { TemplatesPage } from '../pages/admin/templates/TemplatesPage';
-import { TemplateDetailPage } from '../pages/admin/templates/TemplateDetailPage';
+import { NotFoundPage } from '../pages/app/NotFoundPage';
+
+/**
+ * Phase 10E §K route code-splitting. Each non-critical route is a lazy chunk so
+ * the initial bundle carries only the shell + first screens; heavy admin,
+ * quality/template, and job-flow screens load on demand. The Suspense boundary
+ * that renders <RouteFallback/> lives in AppShell (and GuestRoute); a failed
+ * chunk fetch is caught by <RouteErrorBoundary/> there.
+ */
+const RegisterPage = lazy(() => import('../pages/auth/RegisterPage').then((m) => ({ default: m.RegisterPage })));
+const ForgotPasswordPage = lazy(() => import('../pages/auth/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
+const RegistrationRequestsPage = lazy(() => import('../pages/admin/RegistrationRequestsPage').then((m) => ({ default: m.RegistrationRequestsPage })));
+const UsersPage = lazy(() => import('../pages/admin/UsersPage').then((m) => ({ default: m.UsersPage })));
+const BranchesPage = lazy(() => import('../pages/admin/BranchesPage').then((m) => ({ default: m.BranchesPage })));
+const CustomersPage = lazy(() => import('../pages/customers/CustomersPage').then((m) => ({ default: m.CustomersPage })));
+const CustomerDetailPage = lazy(() => import('../pages/customers/CustomerDetailPage').then((m) => ({ default: m.CustomerDetailPage })));
+const VehiclesPage = lazy(() => import('../pages/vehicles/VehiclesPage').then((m) => ({ default: m.VehiclesPage })));
+const JobsPage = lazy(() => import('../pages/jobs/JobsPage').then((m) => ({ default: m.JobsPage })));
+const MyJobsPage = lazy(() => import('../pages/jobs/MyJobsPage').then((m) => ({ default: m.MyJobsPage })));
+const CreateJobPage = lazy(() => import('../pages/jobs/CreateJobPage').then((m) => ({ default: m.CreateJobPage })));
+const JobDetailPage = lazy(() => import('../pages/jobs/JobDetailPage').then((m) => ({ default: m.JobDetailPage })));
+const RiskPolicyPage = lazy(() => import('../pages/admin/RiskPolicyPage').then((m) => ({ default: m.RiskPolicyPage })));
+const TemplatesPage = lazy(() => import('../pages/admin/templates/TemplatesPage').then((m) => ({ default: m.TemplatesPage })));
+const TemplateDetailPage = lazy(() => import('../pages/admin/templates/TemplateDetailPage').then((m) => ({ default: m.TemplateDetailPage })));
 
 export const router = createBrowserRouter([
   {
@@ -83,6 +99,8 @@ export const router = createBrowserRouter([
               { path: 'admin/templates/:id', element: <TemplateDetailPage /> },
             ],
           },
+          // Unknown /app/* path → branded 404 (not a silent redirect).
+          { path: '*', element: <NotFoundPage /> },
         ],
       },
     ],
