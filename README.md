@@ -73,3 +73,20 @@ export default defineConfig([
 ])
 
 ```
+
+## Testing (Phase 10D)
+
+- `npm run test:unit` — pure safety-critical logic (tsx + node:test): GPS capture
+  states, risk-form validation, completion-blocker mapping, stale-signature
+  handling, CSRF rotation ordering.
+- `npm run test:component` — component/integration tests (Vitest + jsdom + React
+  Testing Library): My assigned jobs, risk-policy warning + authorized/unauthorized
+  controls, completion-readiness rendering, GPS button states.
+- `npm test` — runs both.
+- `npm run test:e2e` — Playwright browser flows in `e2e/` (happy / blocked-completion
+  / GPS). Requires local setup: `npm i -D @playwright/test && npx playwright install`,
+  the API running against the isolated `*_test` DB (with the v1 risk matrix ACTIVE),
+  and the Vite dev server. Never point at production; never send real SMS.
+
+> Note: the Vitest dev toolchain (esbuild/vite) carries dev-only `npm audit`
+> advisories. It is a test-only dependency and never part of the production build.

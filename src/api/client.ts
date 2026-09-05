@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios';
+import { decideCsrfAdoption } from '../features/safety/csrf-order';
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? '/api/v1',
@@ -33,15 +34,10 @@ export function setCsrfToken(token: string | null, seq?: number): void {
 
 /** Adopts a rotated CSRF token from a response, guarding against older ones. */
 function adoptRotatedCsrf(headers: unknown): void {
-  const h = headers as Record<string, string | undefined> | undefined;
-  const token = h?.['x-csrf-token'];
-  const seqRaw = h?.['x-session-rotation'];
-  if (typeof token === 'string' && token.length > 0 && seqRaw !== undefined) {
-    const seq = Number(seqRaw);
-    if (Number.isFinite(seq) && seq > csrfRotationSeq) {
-      csrfToken = token;
-      csrfRotationSeq = seq;
-    }
+  const update = decideCsrfAdoption(headers as Record<string, string | undefined> | undefined, csrfRotationSeq);
+  if (update) {
+    csrfToken = update.token;
+    csrfRotationSeq = update.seq;
   }
 }
 

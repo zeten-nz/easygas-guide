@@ -12,8 +12,10 @@ import { CustomersPage } from '../pages/customers/CustomersPage';
 import { CustomerDetailPage } from '../pages/customers/CustomerDetailPage';
 import { VehiclesPage } from '../pages/vehicles/VehiclesPage';
 import { JobsPage } from '../pages/jobs/JobsPage';
+import { MyJobsPage } from '../pages/jobs/MyJobsPage';
 import { CreateJobPage } from '../pages/jobs/CreateJobPage';
 import { JobDetailPage } from '../pages/jobs/JobDetailPage';
+import { RiskPolicyPage } from '../pages/admin/RiskPolicyPage';
 import { TemplatesPage } from '../pages/admin/templates/TemplatesPage';
 import { TemplateDetailPage } from '../pages/admin/templates/TemplateDetailPage';
 
@@ -62,8 +64,13 @@ export const router = createBrowserRouter([
             element: <PermissionRoute permission="jobs.view" />,
             children: [
               { path: 'jobs', element: <JobsPage /> },
+              { path: 'my-jobs', element: <MyJobsPage /> },
               { path: 'jobs/:id', element: <JobDetailPage /> },
             ],
+          },
+          {
+            element: <PermissionRoute permission="risk.matrix.approve" />,
+            children: [{ path: 'admin/risk-policy', element: <RiskPolicyPage /> }],
           },
           {
             element: <PermissionRoute permission="jobs.create" />,

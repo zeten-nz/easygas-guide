@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { RiskPolicyBanner } from '../../features/safety/RiskPolicyBanner';
 import { LogOut, UserRound } from 'lucide-react';
 import { Logo } from '../../components/ui/Logo';
 import { Button } from '../../components/ui/Button';
@@ -10,12 +11,14 @@ import { cn } from '../../lib/utils';
 
 /** Navigation is permission-driven (UX only — the backend enforces access). */
 const NAV_ITEMS: { to: string; label: string; permission: Permission; end?: boolean }[] = [
+  { to: '/app/my-jobs', label: 'Mening ishlarim', permission: 'checklist.execute' },
   { to: '/app/jobs', label: 'Ishlar', permission: 'jobs.view' },
   { to: '/app/customers', label: 'Mijozlar', permission: 'customers.view' },
   { to: '/app/vehicles', label: 'Avtomobillar', permission: 'vehicles.view' },
   { to: '/app/admin/users', label: 'Foydalanuvchilar', permission: 'users.view' },
   { to: '/app/admin/templates', label: 'Shablonlar', permission: 'templates.manage' },
   { to: '/app/admin/branches', label: 'Filiallar', permission: 'branches.manage' },
+  { to: '/app/admin/risk-policy', label: 'Xavf siyosati', permission: 'risk.matrix.approve' },
   { to: '/app/admin/registration-requests', label: "So'rovlar", permission: 'registration.review' },
 ];
 
@@ -80,6 +83,8 @@ export function AppShell() {
           </nav>
         )}
       </header>
+
+      <RiskPolicyBanner />
 
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
         <Outlet />
