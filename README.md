@@ -46,11 +46,25 @@ decision; this client renders server truth and collects input.
   re-sign, completion snapshot, dialog focus trap, route error boundary, session
   expiry, risk-policy warning. Test files are typechecked via `tsconfig.test.json`
   (the production build excludes them).
-- `npm test` — runs both (7 unit + 43 component).
-- `npm run test:e2e` — Playwright flows in `e2e/` (happy / blocked-completion /
-  GPS). **Not run in CI here** (`@playwright/test` not installed, no browser+DB
-  harness). Local setup (macOS/Linux and Windows PowerShell) is documented in
+- `npm test` — runs both (7 unit + 44 component).
+- `npm run test:e2e` — Playwright browser flows in `e2e/` (safety happy path,
+  blocked-completion entry, GPS granted/denied, and a responsive/visual smoke
+  check). `@playwright/test` is a **pinned devDependency** (so `npm ci` installs
+  it and `npm run test:e2e -- --list` works from a clean clone). The
+  `webServer` block auto-starts BOTH tiers: the API E2E harness
+  (`../server` → `npm run test:e2e:serve`: isolated `*_test` DB, fake SMS,
+  in-memory storage, ACTIVE v1 policy, a seeded assigned job) and the Vite dev
+  server. Run against bundled Chromium (install once via
+  `npm run test:e2e:install`) or a **system browser** with no download via
+  `PW_CHANNEL=msedge npm run test:e2e`. Windows PowerShell commands are in
   `playwright.config.ts`. Never point at production; never send real SMS.
+
+## Dependency audit
+
+`npm audit --omit=dev` (production) is **0 vulnerabilities**. The full
+`npm audit` reports dev-only Vitest/Vite/esbuild advisories fixable only by a
+Vitest major upgrade (not applied here — dev-only, never shipped). See
+`docs/FRONTEND-UX-10E.md` §11.
 
 > Note: the Vitest dev toolchain (esbuild/vite) carries dev-only `npm audit`
 > advisories. It is a test-only dependency and never part of the production build.

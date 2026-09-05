@@ -107,11 +107,12 @@ ref) so it does not steal focus on every keystroke.
 
 ## 8. Tests (§M)
 
-Run with `npm test` (7 pure-logic `*.test.ts` via tsx + node:test, then 43 component
+Run with `npm test` (7 pure-logic `*.test.ts` via tsx + node:test, then 44 component
 `*.test.tsx` via vitest + jsdom + RTL). Component coverage:
 
 - Brand: real asset + meaningful/empty alt + no-CLS dimensions.
-- My assigned jobs: loading / list / empty / legacy states.
+- My assigned jobs: loading / list / empty / legacy / **error-state + retry** (no unhandled
+  rejection) states.
 - Assignment: permission gating, current technician, history, branch-scoped candidates.
 - Risk: server-calculated level/blocking as **text** (not colour), current vs prior cycle,
   create gating, blocking-count banner, **error state**.
@@ -124,21 +125,45 @@ Run with `npm test` (7 pure-logic `*.test.ts` via tsx + node:test, then 43 compo
 - Session expiry: 401 event clears the user (no redirect loop).
 - Risk-policy: unapproved-policy warning + approver-only controls.
 
-**Note on error-state tests and late rejections:** error-state tests intentionally reject a
-query. TanStack Query consumes the error (a `QueryCache` `onError` sink in `test/utils`) and
-the component renders its error UI, but the retryer's promise can settle a tick after
-Vitest's unhandled-rejection checkpoint. Where a screen uses `placeholderData:
-keepPreviousData` (MyJobsPage), that artifact ties to the running test, so the routed
-error-state assertion lives on a screen without that confound (`RiskPanel`) — it is
-**covered, not omitted**.
+**MyJobsPage error state (real routed test).** `MyJobsPage.test.tsx` renders the actual
+routed screen with a rejecting `myJobs` request and asserts the user-friendly error state +
+retry affordance, that retry re-invokes the request and the list then renders (the
+`keepPreviousData` path stays correct — no stale error), and — via a scoped
+`unhandledRejection` listener asserted empty — that **no unhandled promise rejection**
+occurs. The harness fix was in the test, not a global suppression: a single
+`mockRejectedValueOnce` driven to a settled state (fresh `QueryClient` per render + the
+`QueryCache` `onError` sink in `test/utils`, `retry: false`) is cleanly handled, whereas a
+*permanent* `mockRejectedValue` under `keepPreviousData` spawned repeated floating
+rejections. No global unhandled-rejection handling is used.
 
-## 9. End-to-end (§N)
+## 9. End-to-end (§N) — reproducible and executed
 
-`e2e/safety.spec.ts` (Playwright) is written against the **real routes** and is **not run
-here** — `@playwright/test` is not installed in this environment and there is no browser +
-app/DB harness, so no e2e pass is claimed. `playwright.config.ts` documents the local run
-for macOS/Linux **and Windows PowerShell**, uses deterministic Tashkent geolocation, and
-targets an isolated `*_test` DB with the v1 matrix ACTIVE.
+`@playwright/test` is a **pinned devDependency**, so `npm ci` installs the runner and
+`npm run test:e2e -- --list` works from a clean clone (scripts: `test:e2e`,
+`test:e2e:headed`, `test:e2e:ui`, `test:e2e:install`). The `webServer` block starts BOTH
+tiers automatically for `npm run test:e2e`:
+
+- **API E2E harness** (`server: npm run test:e2e:serve` → `tests/e2e-server.ts`): sets up the
+  isolated `*_test` DB (refuses any non-`*_test` DB), installs a **fake console SMS** provider
+  and the **in-memory storage** provider (no real Eskiz / S3 / SMS), activates the provisional
+  v1 risk policy, seeds a demo assigned job, and serves on `:4000` (the port Vite proxies
+  `/api` to). Redis is the in-memory implementation under `NODE_ENV=test`. It sets a
+  strictly-non-production, per-request `E2E_DISABLE_RATE_LIMIT` so the same demo user can log
+  in across many tests/re-runs (the real limiters stay covered by `tests/ratelimit.e2e`).
+- **Vite dev server** on `:5173`.
+
+Browsers: Playwright's bundled Chromium (install once via `npm run test:e2e:install`), or a
+system browser with **no download** via `PW_CHANNEL=msedge` / `PW_CHANNEL=chrome`. Video
+capture is opt-in (`PW_VIDEO=1`) so a system-browser run needs no bundled ffmpeg. Windows
+PowerShell run commands are in `playwright.config.ts`.
+
+Specs (`e2e/safety.spec.ts`, `e2e/visual.spec.ts`) target the **real routes**: login (real
+phone-formatting + password), open the assigned job, GPS embedded in the start action
+(granted + permission-denied), the risk register region, and a responsive/visual smoke check
+(logos load undistorted, no horizontal overflow, no severe JS errors, no unexpected failed
+API requests at 360 / 768 / 1366 / 1920 and the Pixel-5 profile). **Executed** against the
+installed system Edge (`PW_CHANNEL=msedge`): **8/8 passing** (4 specs × chromium + mobile
+projects), repeatably. Artifacts (`test-results/`, `playwright-report/`) are git-ignored.
 
 ## 10. Security & privacy posture (§P)
 
@@ -151,7 +176,19 @@ targets an isolated `*_test` DB with the v1 matrix ACTIVE.
 - No `alert()`/`confirm()`; destructive actions use accessible confirm dialogs. No
   `dangerouslySetInnerHTML`. Auth errors stay generic (no account enumeration).
 
-## 11. Server change in this phase
+## 11. Dependency audit
+
+- **Production dependencies** (`npm audit --omit=dev`): **0 vulnerabilities**.
+- **Full tree** (`npm audit`, dev + prod): **5** — all in the Vitest/Vite/esbuild **dev**
+  toolchain (`vitest` CRITICAL, `vite` HIGH, `@vitest/mocker` / `esbuild` / `vite-node`
+  MODERATE). Every one is fixable **only** by `vitest@5.0.0`, a SemVer-**major** breaking
+  change; it is intentionally **not** applied here (a deliberate test-toolchain upgrade, not
+  an acceptance fix) because these are dev-only and never ship in the production bundle. The
+  earlier Playwright advisories were resolved by pinning `@playwright/test` to `^1.63.0` (a
+  non-breaking, in-1.x upgrade). Production and full-tree results are different by design and
+  are reported separately above.
+
+## 12. Server change in this phase
 
 One justified server addition unblocked the assignment UI: a branch-scoped candidate list
 (`assignment.service.listCandidates` + `GET /jobs/:id/assignment/candidates`, gated by
