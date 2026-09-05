@@ -1,0 +1,112 @@
+# EASY GAS full-stack browser E2E (Phase 10F) — CROSS-REPO.
+#
+# This runs the real Playwright suite against BOTH tiers (server API harness +
+# client Vite) in a browser. Because the API lives in a SEPARATE repository, this
+# workflow must check out the server repo, which requires either public repos or
+# an explicitly configured READ-ONLY token. It is intentionally NOT part of the
+# blocking client-ci gate (cross-repo checkout is not available with the default
+# GITHUB_TOKEN for a private repo) — it runs on demand and on a schedule, and
+# fails VISIBLY if misconfigured (it is never silently skipped while a gate goes
+# green).
+#
+# Setup:
+#   - Repository variable  SERVER_REPO   e.g. "your-org/easygas-server"
+#   - Repository secret    SERVER_REPO_TOKEN  a READ-ONLY PAT / fine-grained token
+#       with contents:read on the server repo (omit only if the server repo is
+#       public — then checkout works with the default token).
+name: e2e-fullstack
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 1" # weekly, Monday 03:00 UTC
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-fullstack-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fullstack:
+    name: browser E2E (server + client)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci_only_throwaway_root
+          MYSQL_DATABASE: easygas
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci_only_throwaway_root"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      NODE_ENV: test
+      DB_HOST: 127.0.0.1
+      DB_PORT: "3306"
+      DB_USER: root
+      DB_PASSWORD: ci_only_throwaway_root
+      DB_NAME: easygas
+      TEST_DB_NAME: easygas_test
+      REDIS_URL: redis://127.0.0.1:6379
+      CLIENT_ORIGIN: http://localhost:5173
+      TRUST_PROXY_HOPS: "0"
+      E2E_API_PORT: "4000"
+    steps:
+      - name: Verify cross-repo config is present (fail loudly, never skip)
+        run: |
+          if [ -z "${{ vars.SERVER_REPO }}" ]; then
+            echo "::error::SERVER_REPO variable is not set — cannot run full-stack E2E. Configure it (see workflow header)."
+            exit 1
+          fi
+      - name: Checkout client
+        uses: actions/checkout@v4.2.2
+        with:
+          path: client
+      - name: Checkout server
+        uses: actions/checkout@v4.2.2
+        with:
+          repository: ${{ vars.SERVER_REPO }}
+          token: ${{ secrets.SERVER_REPO_TOKEN }}
+          path: server
+          ref: main
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Generate a throwaway APP_KEY
+        run: echo "APP_KEY=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - name: Build server
+        working-directory: server
+        run: |
+          npm ci
+          npm run build
+      - name: Install client deps + Playwright Chromium
+        working-directory: client
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Run full-stack Playwright (client webServer starts ../server harness + Vite)
+        working-directory: client
+        run: npm run test:e2e
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4.4.3
+        with:
+          name: playwright-report
+          path: client/playwright-report
+          retention-days: 7

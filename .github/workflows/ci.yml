@@ -1,0 +1,72 @@
+# EASY GAS client CI (Phase 10F).
+#
+# Self-contained frontend gate: lint, typecheck, unit + component tests (the real
+# isolated frontend tests, executed via Vitest/jsdom), production build, a
+# bundle-size budget, dependency audits, Playwright spec discovery and browser
+# install/cache. The full-stack browser E2E (which needs the server repo) lives
+# in e2e-fullstack.yml (cross-repo) — it is never silently skipped nor counted in
+# this gate. Action tags are stable releases; pin to a commit SHA in your org.
+name: client-ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: client-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: lint · types · tests · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck (app + tests)
+        run: |
+          npx tsc -b
+          npx tsc -p tsconfig.test.json --noEmit
+      - name: Unit + component tests
+        run: npm test
+      - name: Production build
+        run: npm run build
+      - name: Bundle-size budget
+        run: node scripts/bundle-budget.mjs
+      - name: Production dependency audit (GATE — fail on high/critical)
+        run: npm audit --omit=dev --audit-level=high
+      - name: Full dependency audit (report only — dev toolchain advisories)
+        run: npm audit || true
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4.1.2
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Playwright spec discovery (compiles specs, lists tests)
+        run: npm run test:e2e -- --list
+
+  workflow-lint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: actionlint (self-validate workflows)
+        uses: raven-actions/actionlint@v2
