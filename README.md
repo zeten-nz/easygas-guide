@@ -5,6 +5,16 @@ TanStack Query v5, Tailwind CSS v4, lucide-react icons, sonner toasts. The
 backend (`../server`) is authoritative for every authorization and safety
 decision; this client renders server truth and collects input.
 
+## Documentation
+
+The canonical, git-tracked project status lives in the server repo:
+**[../server/docs/PROJECT_STATUS.md](../server/docs/PROJECT_STATUS.md)**.
+
+- **CI & release** — this client's CI (`client-ci`) and the cross-repo full-stack E2E
+  workflow are documented in
+  [../server/docs/CI-RELEASE-10F.md](../server/docs/CI-RELEASE-10F.md) (see §B and §C).
+- Frontend/UX detail: [docs/FRONTEND-UX-10E.md](docs/FRONTEND-UX-10E.md).
+
 ## Scripts
 
 - `npm run dev` — Vite dev server (proxies `/api/v1` per `VITE_API_URL`).
