@@ -69,6 +69,31 @@ export async function getCompletionSnapshot(jobId: number, cycle?: number): Prom
   }
 }
 
+// ---- Risk policy (matrix governance) ----
+export interface MatrixVersion {
+  version: string;
+  status: 'DRAFT' | 'ACTIVE' | 'RETIRED';
+  approvedBy: number | null;
+  approvedAt: string | null;
+  rationale: string | null;
+  createdAt: string;
+  definition: { thresholds: { min: number; level: string }[]; blockingLevels: string[]; [k: string]: unknown };
+}
+export async function getRiskPolicyState(): Promise<{ active: boolean; version: string | null }> {
+  const { data } = await api.get('/risk-policy');
+  return data;
+}
+export async function listMatrixVersions(): Promise<{ versions: MatrixVersion[] }> {
+  const { data } = await api.get('/risk-policy/versions');
+  return data;
+}
+export async function activateMatrix(version: string, rationale: string): Promise<void> {
+  await api.post(`/risk-policy/${encodeURIComponent(version)}/activate`, { rationale });
+}
+export async function retireMatrix(version: string): Promise<void> {
+  await api.post(`/risk-policy/${encodeURIComponent(version)}/retire`);
+}
+
 // ---- GPS ----
 export interface GpsCapturePayload {
   latitude: number;

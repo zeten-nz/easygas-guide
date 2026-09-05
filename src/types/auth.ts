@@ -33,7 +33,14 @@ export type Permission =
   | 'templates.manage'
   | 'stops.approve'
   | 'jobs.close'
-  | 'jobs.reopen';
+  | 'jobs.reopen'
+  // Phase 10D — safety domain
+  | 'risks.create'
+  | 'risks.resolve'
+  | 'risks.override'
+  | 'risk.matrix.approve'
+  | 'jobs.assign'
+  | 'gps.override';
 
 export type UserStatus = 'ACTIVE' | 'BLOCKED';
 
