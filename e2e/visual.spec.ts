@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { plateFor, gotoJobByPlate } from './helpers';
 
 /**
  * Phase 10E routed visual/responsive smoke check (§D). Verifies, in a real
@@ -91,11 +92,11 @@ test.describe('visual / responsive smoke', () => {
       }
     }
 
-    // Job detail (assignment + risk panels + start action).
+    // Job detail (assignment + risk panels + start action). Uses the dedicated,
+    // never-mutated VIEW fixture job so this read-only visual pass is independent
+    // of the workflow specs' state changes (no "first assigned job" coupling).
     await page.setViewportSize({ width: 1366, height: 768 });
-    await page.goto('/app/my-jobs');
-    await page.getByRole('list', { name: /biriktirilgan ishlar/i }).getByRole('button').first().click();
-    await expect(page).toHaveURL(/\/app\/jobs\/\d+/);
+    await gotoJobByPlate(page, plateFor('VIEW'));
     await expect(page.getByRole('region', { name: /mas'ul texnik/i })).toBeVisible();
     await expect(page.getByRole('region', { name: /xavf registri/i })).toBeVisible();
     for (const bp of BREAKPOINTS) {

@@ -157,13 +157,19 @@ system browser with **no download** via `PW_CHANNEL=msedge` / `PW_CHANNEL=chrome
 capture is opt-in (`PW_VIDEO=1`) so a system-browser run needs no bundled ffmpeg. Windows
 PowerShell run commands are in `playwright.config.ts`.
 
-Specs (`e2e/safety.spec.ts`, `e2e/visual.spec.ts`) target the **real routes**: login (real
-phone-formatting + password), open the assigned job, GPS embedded in the start action
-(granted + permission-denied), the risk register region, and a responsive/visual smoke check
-(logos load undistorted, no horizontal overflow, no severe JS errors, no unexpected failed
-API requests at 360 / 768 / 1366 / 1920 and the Pixel-5 profile). **Executed** against the
-installed system Edge (`PW_CHANNEL=msedge`): **8/8 passing** (4 specs × chromium + mobile
-projects), repeatably. Artifacts (`test-results/`, `playwright-report/`) are git-ignored.
+> **Superseded in Phase 10F.** The original 8-spec smoke set (`safety.spec.ts` + `visual.spec.ts`)
+> has been replaced by the **complete full-stack browser safety journeys** — see
+> `client/docs/FRONTEND-E2E-10F.md`. `safety.spec.ts` is removed; `visual.spec.ts` remains (now
+> keyed to a dedicated non-mutated job). The 8 smoke specs did **not** satisfy the complete
+> full-stack safety requirement.
+
+Specs target the **real routes**: login (real phone-formatting + password), open the assigned job,
+GPS embedded in the start action (granted + permission-denied), the risk register region, and a
+responsive/visual smoke check (logos load undistorted, no horizontal overflow, no severe JS errors,
+no unexpected failed API requests at 360 / 768 / 1366 / 1920 and the Pixel-5 profile). The 10F
+`workflow.spec.ts` adds the five end-to-end journeys (happy / blocking / reopen / assignment / GPS)
+across desktop + Pixel 5, run twice for leakage. **Executed** against the installed system Edge
+(`PW_CHANNEL=msedge`), repeatably. Artifacts (`test-results/`, `playwright-report/`) are git-ignored.
 
 ## 10. Security & privacy posture (§P)
 

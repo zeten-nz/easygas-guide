@@ -31,10 +31,17 @@ const REUSE = !process.env.CI;
 
 export default defineConfig({
   testDir: './e2e',
-  timeout: 30_000,
+  timeout: 60_000,
   fullyParallel: false,
+  // Serial: the full-stack safety flows mutate a shared backend; per-(flow×project)
+  // seeded jobs keep them independent, and one worker keeps ordering deterministic.
+  workers: 1,
   forbidOnly: !!process.env.CI,
-  reporter: process.env.CI ? 'line' : [['list'], ['html', { open: 'never' }]],
+  // CI also emits a JSON summary so the workflow can fail the run if ANY spec was
+  // skipped or if zero specs actually executed (Phase 10F full-stack gate).
+  reporter: process.env.CI
+    ? [['line'], ['json', { outputFile: 'test-results.json' }]]
+    : [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: BASE_URL,
     trace: 'on-first-retry',
