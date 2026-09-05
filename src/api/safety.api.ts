@@ -44,23 +44,69 @@ export async function myJobs(params: { page?: number } = {}): Promise<{ items: u
 export async function assignJob(jobId: number, technicianId: number, reason?: string): Promise<void> {
   await api.post(`/jobs/${jobId}/assign`, { technicianId, reason });
 }
-export async function assignmentHistory(jobId: number): Promise<{ history: unknown[] }> {
+export interface AssignmentHistoryItem {
+  id: number;
+  technicianId: number | null;
+  assignedBy: number;
+  provenance: string;
+  reason: string | null;
+  createdAt: string;
+}
+export async function assignmentHistory(jobId: number): Promise<{ history: AssignmentHistoryItem[] }> {
   const { data } = await api.get(`/jobs/${jobId}/assignment`);
+  return data;
+}
+export interface AssignmentCandidate { id: number; name: string; role: string }
+export async function assignmentCandidates(jobId: number): Promise<{ candidates: AssignmentCandidate[] }> {
+  const { data } = await api.get(`/jobs/${jobId}/assignment/candidates`);
   return data;
 }
 
 // ---- Signable summary + snapshot ----
+/** The server-built material summary the customer reviews and signs (§23). */
+export interface SignableSummaryContent {
+  schemaVersion: string;
+  jobId: number;
+  cycle: number;
+  branchId: number;
+  assignedTechnicianId: number | null;
+  checklistTemplateId: number | null;
+  checklistVersion: number | null;
+  installation: { gasType: string | null; kit: string | null; ecu: string | null; cylinder: string | null; note: string | null };
+  customer: { id: number; name: string; phoneMasked: string } | null;
+  vehicle: { id: number; plate: string; vin: string | null; make: string | null; model: string | null; year: number | null } | null;
+  steps: { id: number; stepId: number; name: string; status: string; isStop: boolean }[];
+  stops: { jobStepId: number; attempt: number; status: string }[];
+  openBlockingRiskIds: number[];
+}
 export interface SignableSummary {
   schemaVersion: string;
   cycle: number;
   digest: string;
-  summary: Record<string, unknown>;
+  summary: SignableSummaryContent;
 }
 export async function getSignableSummary(jobId: number): Promise<SignableSummary> {
   const { data } = await api.get(`/jobs/${jobId}/signable-summary`);
   return data;
 }
-export async function getCompletionSnapshot(jobId: number, cycle?: number): Promise<{ cycle: number; digest: string; content: unknown; schemaVersion: string; provenance: string } | null> {
+
+export interface CompletionSnapshot {
+  cycle: number;
+  digest: string;
+  schemaVersion: string;
+  provenance: string;
+  content: {
+    schemaVersion: string;
+    provenance: string;
+    summary: SignableSummaryContent;
+    summaryDigest: string;
+    assignment: { technicianId: number | null; status: string | null };
+    signature: { id: number; sha256: string; sizeBytes: number; summaryDigest: string | null } | null;
+    risks: { id: number; level: string; blocking: boolean; status: string; source: string; matrixVersion: string }[];
+    [k: string]: unknown;
+  };
+}
+export async function getCompletionSnapshot(jobId: number, cycle?: number): Promise<CompletionSnapshot | null> {
   try {
     const { data } = await api.get(`/jobs/${jobId}/completion-snapshot`, { params: cycle ? { cycle } : {} });
     return data;
@@ -109,4 +155,20 @@ export async function captureGps(jobId: number, payload: GpsCapturePayload): Pro
 export async function overrideGps(jobId: number, reason: string, purpose?: GpsCapturePayload['purpose']): Promise<{ id: number }> {
   const { data } = await api.post(`/jobs/${jobId}/gps/override`, { reason, purpose });
   return data.gps;
+}
+export interface GpsEvent {
+  id: number;
+  cycle: number;
+  purpose: string;
+  latitude: number | null;
+  longitude: number | null;
+  accuracy_m: number | null;
+  client_timestamp: string | null;
+  server_received_at: string | null;
+  provenance: string;
+  actor_id: number;
+}
+export async function listGps(jobId: number): Promise<{ items: GpsEvent[]; total: number }> {
+  const { data } = await api.get(`/jobs/${jobId}/gps`);
+  return data;
 }

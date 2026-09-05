@@ -1,16 +1,19 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Check, CheckCircle2, Eraser, Flag, PenLine, RotateCcw, ShieldCheck, X } from 'lucide-react';
+import { Check, CheckCircle2, Eraser, FileLock2, Flag, Fingerprint, PenLine, RotateCcw, ShieldCheck, X } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Alert } from '../../components/ui/Alert';
 import { Spinner } from '../../components/ui/Spinner';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { Modal } from '../../components/ui/Modal';
+import { SignableSummaryCard } from './SignableSummaryCard';
 import { useAuth } from '../../features/auth/auth-context';
 import * as jobsApi from '../../api/jobs.api';
+import * as safety from '../../api/safety.api';
 import { getApiError, getUploadError } from '../../api/client';
 import { can } from '../../lib/permissions';
+import { isReSignRequired } from '../../features/safety/completion-blockers';
 import type { Job } from '../../types/entities';
 import { cn } from '../../lib/utils';
 
@@ -19,10 +22,11 @@ const CONDITION_LABELS: { key: keyof jobsApi.CompletionInfo['readiness']['condit
   { key: 'stops', label: 'Barcha STOP checkpointlar tasdiqlangan' },
   { key: 'measurements', label: "O'lchovlar talab doirasida" },
   { key: 'photos', label: 'Kerakli foto dalillar mavjud' },
+  { key: 'risks', label: "Hal qilinmagan bloklaydigan xavf yo'q" },
   { key: 'signature', label: 'Mijoz imzosi olingan' },
 ];
 
-/** §22–23 completion workspace: readiness, customer signature, Master close. */
+/** §22–23 completion workspace: readiness, signable summary, signature, close. */
 export function CompletionSection({ job }: { job: Job }) {
   const { user: actor } = useAuth();
   const queryClient = useQueryClient();
@@ -45,7 +49,13 @@ export function CompletionSection({ job }: { job: Job }) {
     },
     onError: (err) => {
       const e = getApiError(err);
-      toast.error(e.details?.length ? e.details.map((d) => d.message).join(' · ') : e.message);
+      if (isReSignRequired(e.code)) {
+        // §23: the accepted work summary went stale — force a fresh signature.
+        toast.error('Ish tafsiloti o\'zgardi — mijoz qayta imzolashi kerak');
+        queryClient.invalidateQueries({ queryKey: ['jobs', 'detail', job.id, 'signable-summary'] });
+      } else {
+        toast.error(e.details?.length ? e.details.map((d) => d.message).join(' · ') : e.message);
+      }
       setCloseConfirmOpen(false);
       invalidate();
     },
@@ -77,6 +87,7 @@ export function CompletionSection({ job }: { job: Job }) {
             />
           </div>
         )}
+        <CompletionSnapshotView job={job} />
         {can(actor, 'jobs.reopen') && <ReopenPanel job={job} onDone={invalidate} />}
       </div>
     );
@@ -100,7 +111,8 @@ export function CompletionSection({ job }: { job: Job }) {
   }
 
   const { readiness, signature } = completionQuery.data;
-  const needSignature = !signature && readiness.conditions.checklist && readiness.conditions.stops;
+  const checklistDone = readiness.conditions.checklist && readiness.conditions.stops;
+  const needSignature = !signature && checklistDone;
 
   return (
     <div className="rounded-3xl border border-[var(--border-1)] bg-[var(--surface)] p-5">
@@ -116,7 +128,7 @@ export function CompletionSection({ job }: { job: Job }) {
         </Alert>
       )}
 
-      {/* §22 condition checklist */}
+      {/* §22 condition checklist (server-authoritative; icon + text, not colour alone) */}
       <div className="mt-3 space-y-2">
         {CONDITION_LABELS.map(({ key, label }) => {
           const ok = readiness.conditions[key];
@@ -131,6 +143,7 @@ export function CompletionSection({ job }: { job: Job }) {
                 {ok ? <Check className="size-3.5" strokeWidth={3} /> : <X className="size-3" />}
               </span>
               <span className={ok ? 'text-[var(--text-1)]' : 'text-[var(--text-2)]'}>{label}</span>
+              <span className="ml-auto text-xs font-medium text-[var(--text-3)]">{ok ? 'OK' : 'kerak'}</span>
             </div>
           );
         })}
@@ -146,8 +159,10 @@ export function CompletionSection({ job }: { job: Job }) {
         </Alert>
       )}
 
-      {/* §23 customer signature capture */}
-      {needSignature && can(actor, 'checklist.execute') && <SignaturePad jobId={job.id} onSaved={invalidate} />}
+      {/* §23 signable summary + customer signature capture */}
+      {checklistDone && can(actor, 'checklist.execute') && (
+        <SignatureFlow job={job} hasSignature={!!signature} needSignature={needSignature} onSaved={invalidate} />
+      )}
 
       {signature && (
         <div className="mt-4">
@@ -164,12 +179,7 @@ export function CompletionSection({ job }: { job: Job }) {
 
       {/* §22 Master close — UX only; the server re-runs the full gate */}
       {can(actor, 'jobs.close') && (
-        <Button
-          size="lg"
-          className="mt-4 w-full"
-          disabled={!readiness.canComplete}
-          onClick={() => setCloseConfirmOpen(true)}
-        >
+        <Button size="lg" className="mt-4 w-full" disabled={!readiness.canComplete} onClick={() => setCloseConfirmOpen(true)}>
           <CheckCircle2 className="size-5" />
           {job.status === 'REOPENED' ? 'Sifat nazoratiga yuborish' : 'Ishni yakunlash'}
         </Button>
@@ -190,6 +200,143 @@ export function CompletionSection({ job }: { job: Job }) {
         Server barcha shartlarni qayta tekshiradi va qaror audit jurnaliga yoziladi.
       </ConfirmDialog>
     </div>
+  );
+}
+
+/**
+ * §23: shows the server's signable summary (what the customer signs) with its
+ * canonical digest, then captures the signature bound to that digest. If the
+ * summary went stale (SIGNATURE_STALE / SUMMARY_STALE), it refetches the fresh
+ * summary and prompts a re-sign — never silently signing an outdated summary.
+ */
+function SignatureFlow({
+  job,
+  hasSignature,
+  needSignature,
+  onSaved,
+}: {
+  job: Job;
+  hasSignature: boolean;
+  needSignature: boolean;
+  onSaved: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const summaryQuery = useQuery({
+    queryKey: ['jobs', 'detail', job.id, 'signable-summary'],
+    queryFn: () => safety.getSignableSummary(job.id),
+  });
+
+  if (summaryQuery.isLoading) {
+    return (
+      <div className="mt-4 flex justify-center py-4">
+        <Spinner className="size-5 text-brand-500" />
+      </div>
+    );
+  }
+  if (summaryQuery.isError || !summaryQuery.data) {
+    return <Alert tone="error" className="mt-4">{summaryQuery.error ? getApiError(summaryQuery.error).message : 'Xulosani yuklab bo\'lmadi'}</Alert>;
+  }
+
+  const summary = summaryQuery.data;
+
+  return (
+    <div className="mt-4 space-y-3">
+      <SignableSummaryCard content={summary.summary} digest={summary.digest} />
+      {needSignature && (
+        <SignaturePad
+          jobId={job.id}
+          summaryDigest={summary.digest}
+          onStale={() => {
+            toast.error('Ish tafsiloti o\'zgardi — yangilangan xulosani ko\'rsatib, qayta imzolatishingiz kerak');
+            queryClient.invalidateQueries({ queryKey: ['jobs', 'detail', job.id, 'signable-summary'] });
+          }}
+          onSaved={onSaved}
+        />
+      )}
+      {hasSignature && (
+        <p className="flex items-center gap-1.5 text-xs text-[var(--text-3)]">
+          <Fingerprint className="size-3.5" aria-hidden />
+          Imzo yuqoridagi xulosa raqamli iziga bog'langan.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Phase 10D immutable completion snapshot (§23). Shows the stored, digest-sealed
+ * record of the completion cycle. Honest about legacy jobs closed before
+ * snapshots existed (none stored → an explicit note, never a fabricated one).
+ */
+function CompletionSnapshotView({ job }: { job: Job }) {
+  const snapshotQuery = useQuery({
+    queryKey: ['jobs', 'detail', job.id, 'completion-snapshot'],
+    queryFn: () => safety.getCompletionSnapshot(job.id),
+  });
+
+  if (snapshotQuery.isLoading) return null;
+  const snapshot = snapshotQuery.data;
+
+  if (!snapshot) {
+    return (
+      <p className="mt-3 text-xs text-[var(--text-3)]">
+        Bu ish uchun muhrlangan snapshot yo'q (eski tizimda yakunlangan bo'lishi mumkin).
+      </p>
+    );
+  }
+
+  const c = snapshot.content;
+  return (
+    <details className="mt-3 rounded-2xl border border-[var(--border-1)] bg-[var(--surface)] p-3.5">
+      <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-[var(--text-1)]">
+        <FileLock2 className="size-4 text-[var(--accent)]" aria-hidden />
+        Muhrlangan yakuniy snapshot (sikl #{snapshot.cycle})
+      </summary>
+      <div className="mt-3 space-y-1.5 text-sm">
+        <div className="flex justify-between gap-3">
+          <span className="text-[var(--text-2)]">Holat</span>
+          <span className="font-medium text-[var(--text-1)]">{snapshot.provenance}</span>
+        </div>
+        <div className="flex justify-between gap-3">
+          <span className="text-[var(--text-2)]">Sxema versiyasi</span>
+          <span className="font-medium text-[var(--text-1)]">{snapshot.schemaVersion}</span>
+        </div>
+        {c.assignment && (
+          <div className="flex justify-between gap-3">
+            <span className="text-[var(--text-2)]">Mas'ul texnik (ID)</span>
+            <span className="font-medium text-[var(--text-1)]">{c.assignment.technicianId ?? '—'}</span>
+          </div>
+        )}
+        {c.signature && (
+          <div className="flex justify-between gap-3">
+            <span className="text-[var(--text-2)]">Imzo bog'langan digest</span>
+            <span className="font-mono text-xs text-[var(--text-3)]">{c.signature.summaryDigest?.slice(0, 16) ?? '—'}…</span>
+          </div>
+        )}
+      </div>
+
+      {c.risks && c.risks.length > 0 && (
+        <div className="mt-3">
+          <p className="text-xs font-semibold text-[var(--text-2)]">Xavflar ({c.risks.length})</p>
+          <ul className="mt-1 space-y-1">
+            {c.risks.map((r) => (
+              <li key={r.id} className="text-xs text-[var(--text-3)]">
+                {r.level} · {r.status}
+                {r.blocking ? ' · bloklovchi' : ''} · matritsa {r.matrixVersion}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="mt-3 flex items-start gap-2 border-t border-[var(--border-1)] pt-3">
+        <Fingerprint className="mt-0.5 size-4 shrink-0 text-[var(--text-3)]" aria-hidden />
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-[var(--text-2)]">Snapshot digesti (o'zgarmas)</p>
+          <p className="break-all font-mono text-[11px] text-[var(--text-3)]">{snapshot.digest}</p>
+        </div>
+      </div>
+    </details>
   );
 }
 
@@ -308,21 +455,35 @@ function QualityReviewPanel({ job, onDone }: { job: Job; onDone: () => void }) {
 }
 
 /** Mobile-first canvas signature capture — the customer signs on the device. */
-function SignaturePad({ jobId, onSaved }: { jobId: number; onSaved: () => void }) {
+function SignaturePad({
+  jobId,
+  summaryDigest,
+  onStale,
+  onSaved,
+}: {
+  jobId: number;
+  summaryDigest: string;
+  onStale: () => void;
+  onSaved: () => void;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const [hasInk, setHasInk] = useState(false);
 
   const uploadMutation = useMutation({
-    mutationFn: (blob: Blob) => jobsApi.uploadSignature(jobId, blob),
+    mutationFn: (blob: Blob) => jobsApi.uploadSignature(jobId, blob, summaryDigest),
     onSuccess: () => {
-      // Success only after the server confirms a READY signature.
       toast.success('Mijoz imzosi saqlandi');
       onSaved();
     },
     onError: (err) => {
+      const e = getApiError(err);
+      if (isReSignRequired(e.code)) {
+        // Summary changed under us — refetch the fresh digest; ink is preserved.
+        onStale();
+        return;
+      }
       const { message, retryable } = getUploadError(err);
-      // The canvas ink is preserved (we never clear on failure) so a retry needs no re-signing.
       toast.error(message, retryable ? { description: 'Imzo saqlanmadi — qaytadan urinishingiz mumkin.' } : undefined);
     },
   });
@@ -354,7 +515,6 @@ function SignaturePad({ jobId, onSaved }: { jobId: number; onSaved: () => void }
   };
 
   const save = () => {
-    // Guard the async toBlob gap so a double tap cannot start two uploads.
     if (uploadMutation.isPending) return;
     canvasRef.current!.toBlob((blob) => {
       if (blob && !uploadMutation.isPending) uploadMutation.mutate(blob);
@@ -362,13 +522,13 @@ function SignaturePad({ jobId, onSaved }: { jobId: number; onSaved: () => void }
   };
 
   return (
-    <div className="mt-4 rounded-2xl border border-[var(--border-1)] bg-[var(--surface-2)] p-3.5">
+    <div className="rounded-2xl border border-[var(--border-1)] bg-[var(--surface-2)] p-3.5">
       <p className="flex items-center gap-2 text-sm font-semibold text-[var(--text-1)]">
         <PenLine className="size-4" />
         Mijoz tasdig'i va imzosi
       </p>
       <p className="mt-1 text-xs text-[var(--text-2)]">
-        Mijoz bajarilgan ish bilan tanishib, quyida imzo qo'yadi. Imzo saqlangach o'zgartirib bo'lmaydi.
+        Mijoz yuqoridagi xulosa bilan tanishib, quyida imzo qo'yadi. Imzo saqlangach o'zgartirib bo'lmaydi.
       </p>
       <canvas
         ref={canvasRef}
@@ -405,14 +565,7 @@ function SignaturePad({ jobId, onSaved }: { jobId: number; onSaved: () => void }
           <Eraser className="size-4" />
           Tozalash
         </Button>
-        <Button
-          type="button"
-          size="lg"
-          className="flex-1"
-          onClick={save}
-          disabled={!hasInk}
-          loading={uploadMutation.isPending}
-        >
+        <Button type="button" size="lg" className="flex-1" onClick={save} disabled={!hasInk} loading={uploadMutation.isPending}>
           <Check className="size-5" strokeWidth={3} />
           Imzoni saqlash
         </Button>

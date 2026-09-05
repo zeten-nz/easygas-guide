@@ -81,6 +81,10 @@ export interface Job {
   reopenReason: string | null;
   reopenedAt: string | null;
   reopenedByName: string | null;
+  assignedTechnicianId: number | null;
+  assignedTechnicianName: string | null;
+  assignmentStatus: string;
+  cycle: number;
   installation: JobInstallation;
 }
 
@@ -102,6 +106,7 @@ export interface CompletionReadiness {
     stops: boolean;
     photos: boolean;
     measurements: boolean;
+    risks: boolean;
     signature: boolean;
   };
 }

@@ -1,92 +1,70 @@
-# React + TypeScript + Vite
+# EASY GAS — Client
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The EASY GAS operator web app: React 19 + Vite + TypeScript, React Router v7,
+TanStack Query v5, Tailwind CSS v4, lucide-react icons, sonner toasts. The
+backend (`../server`) is authoritative for every authorization and safety
+decision; this client renders server truth and collects input.
 
-Currently, two official plugins are available:
+## Scripts
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- `npm run dev` — Vite dev server (proxies `/api/v1` per `VITE_API_URL`).
+- `npm run build` — typecheck (`tsc -b`) + production build. Routes are
+  code-split, so the build emits a small main chunk plus on-demand route chunks.
+- `npm run lint` — ESLint.
+- `npm test` — `test:unit` then `test:component` (see Testing).
 
-## React Compiler
+## Architecture
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Routing & code-splitting** — `src/app/router.tsx` lazy-loads non-critical
+  routes (`React.lazy` + `Suspense`); the shell, guards, and first screens
+  (login, home, 404) are eager. A `RouteErrorBoundary` + `RouteFallback` wrap the
+  routed outlet, so a failed lazy-chunk fetch after a deploy offers a reload.
+- **Auth & security** — session/CSRF tokens are held **in memory only**
+  (`src/api/client.ts`), never in `localStorage`; CSRF adoption is
+  rotation-sequence guarded. A definitive 401 fires `easygas:session-expired`,
+  which clears cached auth so the guards redirect once (no loop).
+- **Design system** — light-first CSS custom properties in `src/index.css`
+  (brand red + blue accent, semantic status tokens paired fg/bg, never colour
+  alone), reusable primitives in `src/components/ui` (`Brand`, `Button`, `Input`,
+  `PasswordInput`, `Select`, `Modal`/`ConfirmDialog` with a focus trap, `Alert`,
+  …).
+- **Branding** — `src/components/ui/Brand.tsx` renders the real logo assets from
+  `/public` at their true aspect ratios (no CLS, never recolored/redrawn).
+- **Safety domain (Phase 10D, integrated in 10E)** — the job-detail screen wires
+  assignment, the risk register, GPS-at-start, the signable summary + digest-bound
+  signature (with stale re-sign), and the immutable completion snapshot. See
+  [docs/FRONTEND-UX-10E.md](docs/FRONTEND-UX-10E.md).
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
-```
-
-## Testing (Phase 10D)
+## Testing
 
 - `npm run test:unit` — pure safety-critical logic (tsx + node:test): GPS capture
   states, risk-form validation, completion-blocker mapping, stale-signature
   handling, CSRF rotation ordering.
-- `npm run test:component` — component/integration tests (Vitest + jsdom + React
-  Testing Library): My assigned jobs, risk-policy warning + authorized/unauthorized
-  controls, completion-readiness rendering, GPS button states.
-- `npm test` — runs both.
-- `npm run test:e2e` — Playwright browser flows in `e2e/` (happy / blocked-completion
-  / GPS). Requires local setup: `npm i -D @playwright/test && npx playwright install`,
-  the API running against the isolated `*_test` DB (with the v1 risk matrix ACTIVE),
-  and the Vite dev server. Never point at production; never send real SMS.
+- `npm run test:component` — component/integration tests (Vitest + jsdom + RTL):
+  branding, my-jobs states, assignment permissions/candidates, server-calculated
+  risk (text not colour), GPS override, signable summary + digest binding + stale
+  re-sign, completion snapshot, dialog focus trap, route error boundary, session
+  expiry, risk-policy warning. Test files are typechecked via `tsconfig.test.json`
+  (the production build excludes them).
+- `npm test` — runs both (7 unit + 44 component).
+- `npm run test:e2e` — Playwright browser flows in `e2e/` (safety happy path,
+  blocked-completion entry, GPS granted/denied, and a responsive/visual smoke
+  check). `@playwright/test` is a **pinned devDependency** (so `npm ci` installs
+  it and `npm run test:e2e -- --list` works from a clean clone). The
+  `webServer` block auto-starts BOTH tiers: the API E2E harness
+  (`../server` → `npm run test:e2e:serve`: isolated `*_test` DB, fake SMS,
+  in-memory storage, ACTIVE v1 policy, a seeded assigned job) and the Vite dev
+  server. Run against bundled Chromium (install once via
+  `npm run test:e2e:install`) or a **system browser** with no download via
+  `PW_CHANNEL=msedge npm run test:e2e`. Windows PowerShell commands are in
+  `playwright.config.ts`. Never point at production; never send real SMS.
+
+## Dependency audit
+
+`npm audit --omit=dev` (production) is **0 vulnerabilities**. The full
+`npm audit` reports dev-only Vitest/Vite/esbuild advisories fixable only by a
+Vitest major upgrade (not applied here — dev-only, never shipped). See
+`docs/FRONTEND-UX-10E.md` §11.
 
 > Note: the Vitest dev toolchain (esbuild/vite) carries dev-only `npm audit`
 > advisories. It is a test-only dependency and never part of the production build.

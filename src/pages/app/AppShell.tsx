@@ -1,8 +1,10 @@
-import { useState, type ReactNode } from 'react';
+import { Suspense, useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { RiskPolicyBanner } from '../../features/safety/RiskPolicyBanner';
+import { RouteFallback } from '../../app/RouteFallback';
+import { RouteErrorBoundary } from '../../app/RouteErrorBoundary';
+import { Brand } from '../../components/ui/Brand';
 import { LogOut, UserRound } from 'lucide-react';
-import { Logo } from '../../components/ui/Logo';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../features/auth/auth-context';
 import { can } from '../../lib/permissions';
@@ -46,8 +48,9 @@ export function AppShell() {
     <div className="flex min-h-dvh flex-col bg-[var(--bg)]">
       <header className="sticky top-0 z-10 border-b border-[var(--border-1)] bg-[var(--surface)]/90 backdrop-blur">
         <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between gap-4 px-4">
-          <Link to="/app" aria-label="Bosh sahifa">
-            <Logo />
+          <Link to="/app" aria-label="EASY GAS — bosh sahifa" className="rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus)]">
+            {/* Above-the-fold primary logo: wordmark on the light header (eager). */}
+            <Brand variant="wordmark" height={30} priority decorative />
           </Link>
 
           <div className="flex items-center gap-3">
@@ -71,7 +74,10 @@ export function AppShell() {
         </div>
 
         {NAV_ITEMS.some((item) => can(user, item.permission)) && (
-          <nav className="mx-auto flex w-full max-w-5xl gap-1 overflow-x-auto px-4 pb-2">
+          <nav
+            aria-label="Asosiy navigatsiya"
+            className="mx-auto flex w-full max-w-5xl gap-1 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
             <ShellNavLink to="/app" end>
               Bosh sahifa
             </ShellNavLink>
@@ -87,7 +93,11 @@ export function AppShell() {
       <RiskPolicyBanner />
 
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
-        <Outlet />
+        <RouteErrorBoundary>
+          <Suspense fallback={<RouteFallback />}>
+            <Outlet />
+          </Suspense>
+        </RouteErrorBoundary>
       </main>
     </div>
   );
@@ -100,9 +110,10 @@ function ShellNavLink({ to, end, children }: { to: string; end?: boolean; childr
       end={end}
       className={({ isActive }) =>
         cn(
-          'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+          // ≥44px touch target (min-h-11) with whitespace-nowrap for the scroll rail.
+          'inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-lg px-3.5 text-sm font-medium transition-colors',
           isActive
-            ? 'bg-brand-50 text-brand-700'
+            ? 'bg-brand-50 text-brand-700 [.theme-dark_&]:bg-brand-500/15 [.theme-dark_&]:text-brand-300'
             : 'text-[var(--text-2)] hover:bg-[var(--surface-2)] hover:text-[var(--text-1)]',
         )
       }

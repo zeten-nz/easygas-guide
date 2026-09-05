@@ -7,9 +7,7 @@ import {
   Building2,
   Car,
   Gauge,
-  Lock,
   Play,
-  ShieldCheck,
   UserRound,
   XCircle,
 } from 'lucide-react';
@@ -17,19 +15,18 @@ import { Button } from '../../components/ui/Button';
 import { Alert } from '../../components/ui/Alert';
 import { Spinner } from '../../components/ui/Spinner';
 import { Modal } from '../../components/ui/Modal';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { JobStatusBadge } from './JobStatusBadge';
 import { ChecklistSection } from './ChecklistSection';
 import { InstallationCard } from './InstallationCard';
 import { CompletionSection } from './CompletionSection';
+import { AssignmentPanel } from './AssignmentPanel';
+import { RiskPanel } from './RiskPanel';
+import { StartJobModal } from './StartJobModal';
 import { useAuth } from '../../features/auth/auth-context';
 import * as jobsApi from '../../api/jobs.api';
 import { getApiError } from '../../api/client';
 import { can } from '../../lib/permissions';
 import { displayPhone } from '../../lib/phone';
-
-/** Later-phase workflow stages — shown as locked, never faked as functional. */
-const FUTURE_STAGES = [{ icon: ShieldCheck, label: 'Sifat nazorati (qayta ochish)' }];
 
 export function JobDetailPage() {
   const { id } = useParams();
@@ -37,7 +34,7 @@ export function JobDetailPage() {
   const { user: actor } = useAuth();
   const queryClient = useQueryClient();
 
-  const [startConfirmOpen, setStartConfirmOpen] = useState(false);
+  const [startOpen, setStartOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
 
@@ -50,19 +47,6 @@ export function JobDetailPage() {
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['jobs'] });
   };
-
-  const startMutation = useMutation({
-    mutationFn: () => jobsApi.startJob(jobId),
-    onSuccess: () => {
-      toast.success('Ish boshlandi');
-      invalidate();
-      setStartConfirmOpen(false);
-    },
-    onError: (err) => {
-      toast.error(getApiError(err).message);
-      setStartConfirmOpen(false);
-    },
-  });
 
   const cancelMutation = useMutation({
     mutationFn: () => jobsApi.cancelJob(jobId, cancelReason.trim()),
@@ -125,7 +109,7 @@ export function JobDetailPage() {
           </div>
           <div className="flex gap-2">
             {showStart && (
-              <Button onClick={() => setStartConfirmOpen(true)}>
+              <Button onClick={() => setStartOpen(true)}>
                 <Play className="size-4" />
                 Ishni boshlash
               </Button>
@@ -198,6 +182,11 @@ export function JobDetailPage() {
         </div>
       </div>
 
+      {/* §12 assignment / responsibility */}
+      <div className="mt-6">
+        <AssignmentPanel job={job} onChanged={invalidate} />
+      </div>
+
       {/* §13 installation details */}
       <div className="mt-6">
         <InstallationCard job={job} />
@@ -209,46 +198,26 @@ export function JobDetailPage() {
         <ChecklistSection job={job} />
       </div>
 
+      {/* §21 risk register */}
+      <div className="mt-6">
+        <RiskPanel job={job} />
+      </div>
+
       {/* Completion flow (§22–23) */}
       <div className="mt-6">
         <CompletionSection job={job} />
       </div>
 
-      {/* Future workflow stages — locked, not faked */}
-      <div className="mt-6">
-        <h2 className="text-lg font-bold text-[var(--text-1)]">Keyingi bosqichlar</h2>
-        <p className="mt-1 text-sm text-[var(--text-2)]">
-          Quyidagi bosqichlar keyingi versiyalarda shu yerda ochiladi.
-        </p>
-        <div className="mt-4 space-y-2">
-          {FUTURE_STAGES.map(({ icon: Icon, label }) => (
-            <div
-              key={label}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-[var(--border-1)] bg-[var(--surface)]/50 p-4 opacity-70"
-            >
-              <span className="inline-flex items-center gap-3 text-sm font-medium text-[var(--text-2)]">
-                <Icon className="size-5" />
-                {label}
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-2)]">
-                <Lock className="size-3" />
-                Keyingi bosqichlarda
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <ConfirmDialog
-        open={startConfirmOpen}
-        title="Ishni boshlash"
-        confirmLabel="Boshlash"
-        loading={startMutation.isPending}
-        onConfirm={() => startMutation.mutate()}
-        onCancel={() => setStartConfirmOpen(false)}
-      >
-        <b>#{job.id}</b> — {job.plateNumber} bo'yicha ish boshlansinmi? Holat "Jarayonda" ga o'tadi.
-      </ConfirmDialog>
+      <StartJobModal
+        jobId={job.id}
+        plateNumber={job.plateNumber}
+        open={startOpen}
+        onClose={() => setStartOpen(false)}
+        onStarted={() => {
+          invalidate();
+          setStartOpen(false);
+        }}
+      />
 
       <Modal
         open={cancelOpen}

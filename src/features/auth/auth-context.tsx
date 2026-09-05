@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import * as authApi from '../../api/auth.api';
 import type { User } from '../../types/auth';
 
@@ -43,6 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (queryClient.getQueryData(AUTH_ME_KEY)) {
         queryClient.setQueryData(AUTH_ME_KEY, null);
         queryClient.removeQueries({ predicate: (q) => q.queryKey[0] !== 'auth' });
+        // Tell the user why they landed back on login (only when a session existed).
+        toast.error('Sessiya muddati tugadi. Iltimos, qayta kiring.');
       }
     };
     window.addEventListener('easygas:session-expired', onExpired);

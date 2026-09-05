@@ -28,6 +28,18 @@
   --color-ink-800: #16191e;
   --color-ink-900: #0c0e11;
 
+  /* EASY GAS brand blue (from the logo — royal blue) */
+  --color-blue-50: #eef2fc;
+  --color-blue-100: #d8e0f7;
+  --color-blue-200: #b3c2ee;
+  --color-blue-300: #839ce2;
+  --color-blue-400: #5573d2;
+  --color-blue-500: #2f4fc0;
+  --color-blue-600: #2340a8;
+  --color-blue-700: #1d3488;
+  --color-blue-800: #182b6c;
+  --color-blue-900: #14224f;
+
   /* Warm white */
   --color-cream-50: #fbfaf8;
   --color-cream-100: #f7f5f2;
@@ -39,25 +51,67 @@
 :root {
   --bg: var(--color-cream-100);
   --surface: #ffffff;
+  --surface-1: #ffffff; /* alias — raised surface */
   --surface-2: var(--color-cream-200);
   --text-1: #14161a;
   --text-2: #5a616c;
+  --text-3: #8a909c; /* tertiary / meta text (>=3:1 on white) */
   --border-1: #e4e1dc;
+  --border: #e4e1dc; /* alias */
   --field-bg: #ffffff;
   --field-border: #d9d5cf;
   --field-placeholder: #a5a9b0;
+
+  /* Interactive accent = brand blue (nav active, links, focus). */
+  --accent: var(--color-blue-600);
+  --accent-weak: var(--color-blue-50);
+  --focus: var(--color-blue-500);
+
+  /* Semantic status (paired fg/bg; never rely on colour alone — pair with an icon/label). */
+  --success: #16a34a;
+  --success-fg: #15803d;
+  --success-bg: #f0fdf4;
+  --warning: #d97706;
+  --warning-fg: #92400e;
+  --warning-bg: #fffbeb;
+  --danger: #dc2626;
+  --danger-fg: #b91c1c; /* AA on white */
+  --danger-bg: #fef2f2;
+  /* CRITICAL risk — the strongest safety accent. */
+  --critical: #b91c1c;
+  --critical-bg: #fef2f2;
 }
 
 .theme-dark {
   --bg: var(--color-ink-900);
   --surface: rgba(255, 255, 255, 0.04);
+  --surface-1: rgba(255, 255, 255, 0.04);
   --surface-2: rgba(255, 255, 255, 0.07);
   --text-1: #f5f3f0;
   --text-2: #9ba1ab;
+  --text-3: #6b7280;
   --border-1: rgba(255, 255, 255, 0.1);
+  --border: rgba(255, 255, 255, 0.1);
   --field-bg: rgba(255, 255, 255, 0.05);
   --field-border: rgba(255, 255, 255, 0.14);
   --field-placeholder: #6b7280;
+  --accent: var(--color-blue-300);
+  --accent-weak: rgba(47, 79, 192, 0.16);
+  --focus: var(--color-blue-300);
+  --success-fg: #4ade80;
+  --success-bg: rgba(22, 163, 74, 0.14);
+  --warning-fg: #fbbf24;
+  --warning-bg: rgba(217, 119, 6, 0.16);
+  --danger-fg: #f87171;
+  --danger-bg: rgba(220, 38, 38, 0.16);
+  --critical: #f87171;
+  --critical-bg: rgba(185, 28, 28, 0.2);
+}
+
+/* Global visible focus ring for keyboard users (accessibility). */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 html,

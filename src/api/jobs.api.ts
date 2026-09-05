@@ -127,9 +127,16 @@ export async function fetchCompletion(jobId: number): Promise<CompletionInfo> {
   return data;
 }
 
-export async function uploadSignature(jobId: number, blob: Blob): Promise<SignatureDetail> {
+/**
+ * Phase 10D §23: the customer signs the server-built summary. The digest the UI
+ * displayed is submitted so the server can reject a signature over a stale
+ * summary (SIGNATURE_STALE / SUMMARY_STALE). The server recomputes the
+ * authoritative digest; this value is never trusted, only compared.
+ */
+export async function uploadSignature(jobId: number, blob: Blob, summaryDigest?: string): Promise<SignatureDetail> {
   const form = new FormData();
   form.append('signature', blob, 'signature.png');
+  if (summaryDigest) form.append('summaryDigest', summaryDigest);
   const { data } = await api.post(`/jobs/${jobId}/signature`, form);
   return data.signature;
 }
