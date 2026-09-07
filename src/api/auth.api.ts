@@ -54,17 +54,19 @@ export async function register(input: RegisterInput): Promise<{ message: string 
   return data;
 }
 
-export async function forgotPassword(phone: string): Promise<{ message: string }> {
-  const { data } = await api.post('/auth/forgot-password', { phone });
-  return data;
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
 }
 
-export async function verifyOtp(phone: string, otp: string): Promise<{ resetToken: string }> {
-  const { data } = await api.post('/auth/verify-otp', { phone, otp });
-  return data;
-}
-
-export async function resetPassword(resetToken: string, password: string): Promise<{ message: string }> {
-  const { data } = await api.post('/auth/reset-password', { resetToken, password });
-  return data;
+/**
+ * Authenticated self password change. Clears the first-login restriction of a
+ * temporary-password session. The server revokes the old session and returns a
+ * fresh one + CSRF token, so we adopt the new token and return the updated user
+ * (mustChangePassword now false).
+ */
+export async function changePassword(input: ChangePasswordInput): Promise<User> {
+  const { data } = await api.post('/auth/change-password', input);
+  setCsrfToken(data.csrfToken ?? null, data.rotationSeq);
+  return data.user;
 }
