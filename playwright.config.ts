@@ -31,16 +31,21 @@ const REUSE = !process.env.CI;
 
 export default defineConfig({
   testDir: './e2e',
+  // Preflight: verify the server harness seeded the required fixtures BEFORE any
+  // browser opens (fails fast + clearly if the wrong/old server was started).
+  globalSetup: './e2e/global-setup.ts',
   timeout: 60_000,
   fullyParallel: false,
   // Serial: the full-stack safety flows mutate a shared backend; per-(flow×project)
   // seeded jobs keep them independent, and one worker keeps ordering deterministic.
   workers: 1,
   forbidOnly: !!process.env.CI,
-  // CI also emits a JSON summary so the workflow can fail the run if ANY spec was
-  // skipped or if zero specs actually executed (Phase 10F full-stack gate).
+  // CI emits: line (log), JSON (so the workflow can fail the run on any skip /
+  // zero-executed — Phase 10F full-stack gate), and HTML (so a failed run has a
+  // browsable report to upload as an artifact). Traces/screenshots/error-context
+  // land under the default `test-results/` output dir.
   reporter: process.env.CI
-    ? [['line'], ['json', { outputFile: 'test-results.json' }]]
+    ? [['line'], ['json', { outputFile: 'test-results.json' }], ['html', { open: 'never' }]]
     : [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: BASE_URL,
