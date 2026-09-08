@@ -77,8 +77,22 @@ export function ProductFormModal({ editProduct, onClose }: { editProduct: Produc
   };
 
   return (
-    <Modal open onClose={onClose} title={isEdit ? 'Mahsulotni tahrirlash' : 'Yangi mahsulot'}>
-      <form onSubmit={handleSubmit(submit)} noValidate className="space-y-4">
+    <Modal
+      open
+      onClose={onClose}
+      title={isEdit ? 'Mahsulotni tahrirlash' : 'Yangi mahsulot'}
+      footer={
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="ghost" onClick={onClose} disabled={mutation.isPending}>
+            Bekor qilish
+          </Button>
+          <Button type="submit" form="product-form" loading={mutation.isPending}>
+            {isEdit ? 'Saqlash' : 'Yaratish'}
+          </Button>
+        </div>
+      }
+    >
+      <form id="product-form" onSubmit={handleSubmit(submit)} noValidate className="space-y-4">
         {serverError && <Alert tone="error">{serverError}</Alert>}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -111,18 +125,6 @@ export function ProductFormModal({ editProduct, onClose }: { editProduct: Produc
         {isEdit && (
           <Input label="Narx o'zgarishi sababi (ixtiyoriy)" placeholder="Narx o'zgarsa, tarixda saqlanadi" {...register('priceReason')} />
         )}
-
-        {/* Sticky footer: the action buttons stay pinned to the bottom of the
-            (scrollable) modal, so they are always in view and stable — no scroll
-            race on a tall dialog / small viewport. */}
-        <div className="sticky bottom-0 -mx-5 mt-2 flex justify-end gap-3 border-t border-[var(--border-1)] bg-[var(--surface)] px-5 py-3 sm:-mx-6 sm:px-6">
-          <Button type="button" variant="ghost" onClick={onClose} disabled={mutation.isPending}>
-            Bekor qilish
-          </Button>
-          <Button type="submit" loading={mutation.isPending}>
-            {isEdit ? 'Saqlash' : 'Yaratish'}
-          </Button>
-        </div>
       </form>
     </Modal>
   );

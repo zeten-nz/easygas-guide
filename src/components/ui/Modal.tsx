@@ -8,12 +8,20 @@ interface ModalProps {
   title: string;
   children: ReactNode;
   className?: string;
+  /**
+   * Optional fixed footer (e.g. form action buttons). When provided, the panel
+   * becomes a flex column — header + a SCROLLABLE body + this non-scrolling
+   * footer — so the actions stay pinned and fully clickable even on a tall mobile
+   * bottom-sheet. A submit button in the footer associates with its form via the
+   * HTML `form` attribute (the form lives in `children`).
+   */
+  footer?: ReactNode;
 }
 
 const FOCUSABLE =
   'a[href],area[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
-export function Modal({ open, onClose, title, children, className }: ModalProps) {
+export function Modal({ open, onClose, title, children, className, footer }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   // Keep the latest onClose without making the focus effect re-run every render
   // (inline `onClose` arrows change identity each render — a dep on it would
@@ -84,23 +92,36 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
         aria-label={title}
         tabIndex={-1}
         className={cn(
-          'max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl bg-[var(--surface)] p-5 shadow-2xl sm:max-w-lg sm:rounded-3xl sm:p-6',
+          'max-h-[92dvh] w-full rounded-t-3xl bg-[var(--surface)] shadow-2xl sm:max-w-lg sm:rounded-3xl',
           'border border-[var(--border-1)]',
+          // Without a fixed footer: the whole panel scrolls (original behavior).
+          // With one: a flex column so only the body scrolls and the footer stays put.
+          footer ? 'flex flex-col overflow-hidden' : 'overflow-y-auto p-5 sm:p-6',
           className,
         )}
       >
-        <div className="mb-4 flex items-center justify-between gap-4">
-          <h2 className="text-lg font-bold text-[var(--text-1)]">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Yopish"
-            className="rounded-lg p-1.5 text-[var(--text-2)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text-1)]"
-          >
-            <X className="size-5" />
-          </button>
-        </div>
-        {children}
+        {footer ? (
+          <>
+            <div className="flex shrink-0 items-center justify-between gap-4 p-5 pb-3 sm:px-6 sm:pt-6">
+              <h2 className="text-lg font-bold text-[var(--text-1)]">{title}</h2>
+              <button type="button" onClick={onClose} aria-label="Yopish" className="rounded-lg p-1.5 text-[var(--text-2)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text-1)]">
+                <X className="size-5" />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-2 sm:px-6">{children}</div>
+            <div className="shrink-0 border-t border-[var(--border-1)] bg-[var(--surface)] p-4 sm:px-6 sm:py-4">{footer}</div>
+          </>
+        ) : (
+          <>
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <h2 className="text-lg font-bold text-[var(--text-1)]">{title}</h2>
+              <button type="button" onClick={onClose} aria-label="Yopish" className="rounded-lg p-1.5 text-[var(--text-2)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text-1)]">
+                <X className="size-5" />
+              </button>
+            </div>
+            {children}
+          </>
+        )}
       </div>
     </div>
   );
