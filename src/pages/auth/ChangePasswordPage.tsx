@@ -107,6 +107,13 @@ export function ChangePasswordPage() {
           })}
         />
 
+        {/* Session security: the server revokes every existing session on a
+            password change and issues this device a fresh one. */}
+        <p className="text-[13px] leading-relaxed text-[var(--text-2)]">
+          Xavfsizlik uchun parolni o'zgartirsangiz, boshqa qurilmalardagi barcha seanslaringiz
+          tugatiladi — faqat shu qurilma tizimda qoladi.
+        </p>
+
         <Button type="submit" size="lg" loading={mutation.isPending} className="w-full">
           Parolni o'rnatish
         </Button>
