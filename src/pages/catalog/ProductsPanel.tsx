@@ -17,19 +17,10 @@ import { can } from '../../lib/permissions';
 import { formatUZS } from '../../lib/money';
 import { getApiError } from '../../api/client';
 import * as catalogApi from '../../api/catalog.api';
-import { listReference } from '../../api/reference.api';
-import type { Product, ReferenceKind } from '../../types/catalog';
+import { RefCombobox } from '../../components/catalog/RefCombobox';
+import type { Product } from '../../types/catalog';
 import { ProductFormModal } from './ProductFormModal';
 import { PriceHistoryModal } from './PriceHistoryModal';
-
-function useRefOptions(kind: ReferenceKind, enabled = true) {
-  return useQuery({
-    queryKey: ['reference', kind, 'active-options'],
-    queryFn: () => listReference(kind, { status: 'ACTIVE', limit: 100 }),
-    select: (d) => d.items,
-    enabled,
-  });
-}
 
 export function ProductsPanel() {
   const { user: actor } = useAuth();
@@ -57,9 +48,6 @@ export function ProductsPanel() {
   const [editTarget, setEditTarget] = useState<Product | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [historyTarget, setHistoryTarget] = useState<Product | null>(null);
-
-  const companies = useRefOptions('companies', canManage || !!filters.companyId || true);
-  const categories = useRefOptions('product-categories');
 
   const params: catalogApi.ListProductsParams = {
     page,
@@ -132,22 +120,22 @@ export function ProductsPanel() {
           onChange={(e) => setSearchInput(e.target.value)}
           aria-label="Qidiruv"
         />
-        <Select value={filters.companyId} onChange={(e) => setFilter('companyId', e.target.value)} aria-label="Kompaniya bo'yicha filtr">
-          <option value="">Barcha kompaniyalar</option>
-          {(companies.data ?? []).map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </Select>
-        <Select value={filters.categoryId} onChange={(e) => setFilter('categoryId', e.target.value)} aria-label="Kategoriya bo'yicha filtr">
-          <option value="">Barcha kategoriyalar</option>
-          {(categories.data ?? []).map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </Select>
+        <RefCombobox
+          kind="companies"
+          ariaLabel="Kompaniya bo'yicha filtr"
+          placeholder="Barcha kompaniyalar"
+          allowClear
+          value={filters.companyId ? Number(filters.companyId) : null}
+          onChange={(v) => setFilter('companyId', v ? String(v) : '')}
+        />
+        <RefCombobox
+          kind="product-categories"
+          ariaLabel="Kategoriya bo'yicha filtr"
+          placeholder="Barcha kategoriyalar"
+          allowClear
+          value={filters.categoryId ? Number(filters.categoryId) : null}
+          onChange={(v) => setFilter('categoryId', v ? String(v) : '')}
+        />
         <Select value={filters.status} onChange={(e) => setFilter('status', e.target.value)} aria-label="Holat bo'yicha filtr">
           <option value="">Barcha holatlar</option>
           <option value="ACTIVE">Faol</option>

@@ -4,7 +4,10 @@ import { renderWithProviders } from '../../test/utils';
 
 let currentUser: { permissions: string[] } = { permissions: ['catalog.view', 'catalog.manage'] };
 vi.mock('../../features/auth/auth-context', () => ({ useAuth: () => ({ user: currentUser }) }));
-vi.mock('../../api/reference.api', () => ({ listReference: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, limit: 100 }) }));
+vi.mock('../../api/reference.api', () => ({
+  listReference: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 }),
+  getReferenceById: vi.fn(),
+}));
 vi.mock('../../api/catalog.api', () => ({
   listProducts: vi.fn(),
   archiveProduct: vi.fn(),

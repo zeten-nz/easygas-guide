@@ -14,6 +14,12 @@ export async function listReference(kind: ReferenceKind, params: ListReferencePa
   const { data } = await api.get(`/reference/${kind}`, { params });
   return data;
 }
+/** Load one reference row by id (any status) — used to display a selected value
+ *  that is archived or outside the current search page. */
+export async function getReferenceById(kind: ReferenceKind, id: number): Promise<ReferenceItem> {
+  const { data } = await api.get(`/reference/${kind}/${id}`);
+  return data.item;
+}
 export async function createReference(kind: ReferenceKind, input: { name: string; code?: string }): Promise<ReferenceItem> {
   const { data } = await api.post(`/reference/${kind}`, input);
   return data.item;

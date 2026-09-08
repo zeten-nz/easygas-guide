@@ -1,22 +1,21 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
+import { RefCombobox } from '../../components/catalog/RefCombobox';
 import { getApiError } from '../../api/client';
 import * as catalogApi from '../../api/catalog.api';
-import { listReference } from '../../api/reference.api';
 import { somToMinor, minorToSom } from '../../lib/money';
 import type { Service } from '../../types/catalog';
 
 interface FormValues {
   code: string;
   name: string;
-  categoryId: string;
   durationMinutes: string;
   price: string;
   priceBasis: 'NET' | 'GROSS' | 'UNKNOWN';
@@ -29,12 +28,8 @@ export function ServiceFormModal({ editService, onClose }: { editService: Servic
   const queryClient = useQueryClient();
   const isEdit = !!editService;
   const [serverError, setServerError] = useState<string | null>(null);
-
-  const categories = useQuery({
-    queryKey: ['reference', 'service-categories', 'active-options'],
-    queryFn: () => listReference('service-categories', { status: 'ACTIVE', limit: 100 }),
-    select: (d) => d.items,
-  });
+  const [categoryId, setCategoryId] = useState<number | null>(editService?.categoryId ?? null);
+  const [categoryError, setCategoryError] = useState<string | undefined>(undefined);
 
   const {
     register,
@@ -45,7 +40,6 @@ export function ServiceFormModal({ editService, onClose }: { editService: Servic
       ? {
           code: editService.code,
           name: editService.name,
-          categoryId: String(editService.categoryId),
           durationMinutes: editService.durationMinutes === null ? '' : String(editService.durationMinutes),
           price: editService.priceMinor === null ? '' : String(minorToSom(editService.priceMinor)),
           priceBasis: editService.priceBasis,
@@ -53,7 +47,7 @@ export function ServiceFormModal({ editService, onClose }: { editService: Servic
           priceInclusive: editService.priceInclusiveMinor === null ? '' : String(minorToSom(editService.priceInclusiveMinor)),
           priceReason: '',
         }
-      : { code: '', name: '', categoryId: '', durationMinutes: '', price: '', priceBasis: 'UNKNOWN', taxPercent: '', priceInclusive: '', priceReason: '' },
+      : { code: '', name: '', durationMinutes: '', price: '', priceBasis: 'UNKNOWN', taxPercent: '', priceInclusive: '', priceReason: '' },
   });
 
   const mutation = useMutation({
@@ -61,7 +55,7 @@ export function ServiceFormModal({ editService, onClose }: { editService: Servic
       const base = {
         code: v.code.trim(),
         name: v.name.trim(),
-        categoryId: Number(v.categoryId),
+        categoryId: categoryId!,
         durationMinutes: v.durationMinutes.trim() === '' ? null : Number(v.durationMinutes),
         priceMinor: v.price.trim() === '' ? null : somToMinor(Number(v.price)),
         priceBasis: v.priceBasis,
@@ -83,19 +77,33 @@ export function ServiceFormModal({ editService, onClose }: { editService: Servic
 
   return (
     <Modal open onClose={onClose} title={isEdit ? 'Xizmatni tahrirlash' : 'Yangi xizmat'}>
-      <form onSubmit={handleSubmit((v) => mutation.mutate(v))} noValidate className="space-y-4">
+      <form
+        onSubmit={handleSubmit((v) => {
+          if (categoryId == null) {
+            setCategoryError('Kategoriya tanlanishi shart');
+            return;
+          }
+          mutation.mutate(v);
+        })}
+        noValidate
+        className="space-y-4"
+      >
         {serverError && <Alert tone="error">{serverError}</Alert>}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input label="Kod" error={errors.code?.message} {...register('code', { required: 'Kod kiritilishi shart' })} />
           <Input label="Nomi" error={errors.name?.message} {...register('name', { required: 'Nomi kiritilishi shart' })} />
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Select label="Kategoriya" error={errors.categoryId?.message} {...register('categoryId', { required: 'Kategoriya tanlanishi shart' })}>
-            <option value="" disabled>Tanlang</option>
-            {(categories.data ?? []).map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </Select>
+          <RefCombobox
+            kind="service-categories"
+            label="Kategoriya"
+            value={categoryId}
+            onChange={(v) => {
+              setCategoryId(v);
+              setCategoryError(undefined);
+            }}
+            error={categoryError}
+          />
           <Input label="Davomiyligi (daqiqa, ixtiyoriy)" type="number" min={0} {...register('durationMinutes')} />
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext } from '@playwright/test';
-import { USERS, loginAs, guardPage } from './helpers';
+import { USERS, loginAs, guardPage, csrfToken } from './helpers';
 
 /**
  * Phase 11B — product & service catalogue + reference data, full-stack browser
@@ -50,12 +50,30 @@ async function seed(request: APIRequestContext): Promise<void> {
   await ensureRef(request, headers, 'units', { name: 'dona', code: UNIT_CODE }, 'code', UNIT_CODE);
   await ensureRef(request, headers, 'service-categories', { name: SVC_CAT }, 'name', SVC_CAT);
 
+  // >100 brands so a selector's first page (20) cannot reach them all — the
+  // combobox regression selects one beyond the first pages via server search.
+  for (let i = 0; i < 120; i++) {
+    await request.post('/api/v1/reference/brands', { headers, data: { name: `E2E Brend ${String(i).padStart(3, '0')}` } });
+  }
+
   for (let i = 0; i < PRODUCT_COUNT; i++) {
     await request.post('/api/v1/products', {
       headers,
       data: { code: `E2E-P${String(i).padStart(2, '0')}`, name: `E2E Mahsulot ${String(i).padStart(2, '0')}`, companyId, categoryId, priceMinor: (i + 1) * 100000 },
     });
   }
+}
+
+/** Pick a value in a RefCombobox: open it (by its label), search, click the option. */
+async function pickCombo(
+  scope: import('@playwright/test').Page | import('@playwright/test').Locator,
+  label: string,
+  optionName: string,
+  exact = true,
+) {
+  await scope.getByLabel(label, { exact }).click();
+  await scope.getByPlaceholder('Qidiruv…').fill(optionName);
+  await scope.getByRole('option', { name: optionName, exact: false }).first().click();
 }
 
 test.describe('catalog', () => {
@@ -74,21 +92,21 @@ test.describe('catalog', () => {
     await page.goto('/app/catalog/products');
     await expect(page.getByRole('heading', { name: 'Narx bazasi' })).toBeVisible();
 
-    // Filter to the seeded category → deterministic set, paginated (>25).
-    await page.getByLabel('Kategoriya bo\'yicha filtr').selectOption({ label: CAT });
+    // Filter to the seeded category (searchable combobox) → deterministic set, paginated (>25).
+    await pickCombo(page, "Kategoriya bo'yicha filtr", CAT);
     await expect(page.getByText(new RegExp(`Jami\\s*${PRODUCT_COUNT}\\s*mahsulot`))).toBeVisible();
     await page.getByLabel('Keyingi sahifa').click();
     await expect(page).toHaveURL(/page=2/);
 
-    // Create a product through the UI. Scope every field to the dialog so a
-    // same-named PAGE filter (e.g. "Kompaniya bo'yicha filtr") is never targeted.
-    const code = `E2E-NEW-${test.info().project.name === 'chromium' ? 'cr' : 'mo'}-${Date.now()}`;
+    // Create a product through the UI. Reference fields are searchable comboboxes.
+    const proj = test.info().project.name === 'chromium' ? 'cr' : 'mo';
+    const code = `E2E-NEW-${proj}-${Date.now()}`;
     await page.getByRole('button', { name: /yangi mahsulot/i }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel('Kod (SKU)').fill(code);
-    await dialog.getByLabel('Nomi', { exact: true }).fill('E2E Yangi mahsulot');
-    await dialog.getByLabel('Kompaniya', { exact: true }).selectOption({ label: CO });
-    await dialog.getByLabel('Kategoriya', { exact: true }).selectOption({ label: OTHER_CAT });
+    await dialog.getByLabel('Nomi', { exact: true }).fill(`E2E Yangi ${proj}`);
+    await pickCombo(dialog, 'Kompaniya', CO);
+    await pickCombo(dialog, 'Kategoriya', OTHER_CAT);
     await dialog.getByLabel(/Narx \(so'm\)/).fill('1500000');
     await dialog.getByRole('button', { name: /^yaratish$/i }).click();
     await expect(dialog).toBeHidden();
@@ -97,10 +115,10 @@ test.describe('catalog', () => {
     // category filter above is still set to CAT).
     await page.goto('/app/catalog/products');
     await page.getByLabel('Qidiruv').fill(code);
-    const nameLink = page.getByRole('link', { name: 'E2E Yangi mahsulot' }).first();
+    const nameLink = page.getByRole('link', { name: `E2E Yangi ${proj}` }).first();
     await expect(nameLink).toBeVisible();
     await nameLink.click();
-    await expect(page.getByRole('heading', { name: 'E2E Yangi mahsulot' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: `E2E Yangi ${proj}` })).toBeVisible();
     await expect(page.getByText("1 500 000 so'm").first()).toBeVisible();
 
     // Edit the price → the history section records old → new.
@@ -117,7 +135,7 @@ test.describe('catalog', () => {
     await page.goto('/app/catalog/products');
     await page.getByLabel('Holat bo\'yicha filtr').selectOption('ARCHIVED');
     await page.getByLabel('Qidiruv').fill(code);
-    await expect(page.getByRole('link', { name: 'E2E Yangi mahsulot' }).first()).toBeVisible();
+    await expect(page.getByRole('link', { name: `E2E Yangi ${proj}` }).first()).toBeVisible();
 
     clean();
   });
@@ -134,12 +152,64 @@ test.describe('catalog', () => {
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel('Kod', { exact: true }).fill(code);
     await dialog.getByLabel('Nomi', { exact: true }).fill('E2E Yangi xizmat');
-    await dialog.getByLabel('Kategoriya', { exact: true }).selectOption({ label: SVC_CAT });
+    await pickCombo(dialog, 'Kategoriya', SVC_CAT);
     await dialog.getByLabel(/Narx \(so'm\)/).fill('300000');
     await dialog.getByRole('button', { name: /^yaratish$/i }).click();
     await expect(dialog).toBeHidden();
     await page.getByLabel('Qidiruv').fill(code);
     await expect(page.getByRole('link', { name: 'E2E Yangi xizmat' }).first()).toBeVisible();
+    clean();
+  });
+
+  test('reference combobox: select a value beyond the first 100, and display an archived selection', async ({ page }) => {
+    const clean = guardPage(page);
+    const proj = test.info().project.name === 'chromium' ? 'cr' : 'mo';
+    await loginAs(page, USERS.ADMIN);
+
+    // (A) Select a brand well beyond the first page(s) via server-backed search
+    // (there are 120 seeded brands; a first-page-of-20 list could never reach it).
+    const farBrand = `E2E Brend ${proj === 'cr' ? '110' : '111'}`;
+    const codeA = `E2E-B100-${proj}-${Date.now()}`;
+    await page.goto('/app/catalog/products');
+    await page.getByRole('button', { name: /yangi mahsulot/i }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Kod (SKU)').fill(codeA);
+    await dialog.getByLabel('Nomi', { exact: true }).fill(`E2E B100 ${proj}`);
+    await pickCombo(dialog, 'Kompaniya', CO);
+    await pickCombo(dialog, 'Kategoriya', OTHER_CAT);
+    await pickCombo(dialog, 'Brend (ixtiyoriy)', farBrand);
+    await dialog.getByRole('button', { name: /^yaratish$/i }).click();
+    await expect(dialog).toBeHidden();
+
+    // Reopen (edit) → the far brand (outside the current results) is displayed correctly.
+    await page.goto('/app/catalog/products');
+    await page.getByLabel('Qidiruv').fill(codeA);
+    await page.getByRole('link', { name: `E2E B100 ${proj}` }).first().click();
+    await page.getByRole('button', { name: /tahrirlash/i }).click();
+    await expect(page.getByRole('dialog').getByLabel('Brend (ixtiyoriy)')).toContainText(farBrand);
+    await page.getByRole('dialog').getByRole('button', { name: /bekor qilish/i }).click();
+
+    // (B) A product whose brand is later ARCHIVED still displays it on edit (readable),
+    // while the search list only offers ACTIVE values (never re-selectable). Uses a
+    // throwaway brand so it can't pollute the seeded set across projects.
+    const token = await csrfToken(page);
+    const h = { 'x-csrf-token': token };
+    const archBrand = `E2E ArchBrand ${proj} ${Date.now()}`;
+    const brandId = (await (await page.request.post('/api/v1/reference/brands', { headers: h, data: { name: archBrand } })).json()).item.id;
+    const co = (await (await page.request.get(`/api/v1/reference/companies?search=${encodeURIComponent(CO)}`)).json()).items[0].id;
+    const cat = (await (await page.request.get(`/api/v1/reference/product-categories?search=${encodeURIComponent(OTHER_CAT)}`)).json()).items[0].id;
+    const codeB = `E2E-ARCH-${proj}-${Date.now()}`;
+    const created = await page.request.post('/api/v1/products', { headers: h, data: { code: codeB, name: `E2E Arch ${proj}`, companyId: co, categoryId: cat, brandId } });
+    expect(created.ok(), `create product: ${created.status()}`).toBeTruthy();
+    await page.request.post(`/api/v1/reference/brands/${brandId}/archive`, { headers: h });
+
+    await page.goto('/app/catalog/products');
+    await page.getByLabel('Qidiruv').fill(codeB);
+    await page.getByRole('link', { name: `E2E Arch ${proj}` }).first().click();
+    await page.getByRole('button', { name: /tahrirlash/i }).click();
+    const editDialog = page.getByRole('dialog');
+    await expect(editDialog.getByLabel('Brend (ixtiyoriy)')).toContainText(archBrand);
+    await expect(editDialog.getByText('(arxivlangan)')).toBeVisible();
     clean();
   });
 

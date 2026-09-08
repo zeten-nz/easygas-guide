@@ -17,7 +17,7 @@ import { can } from '../../lib/permissions';
 import { formatUZS } from '../../lib/money';
 import { getApiError } from '../../api/client';
 import * as catalogApi from '../../api/catalog.api';
-import { listReference } from '../../api/reference.api';
+import { RefCombobox } from '../../components/catalog/RefCombobox';
 import type { Service } from '../../types/catalog';
 import { ServiceFormModal } from './ServiceFormModal';
 import { PriceHistoryModal } from './PriceHistoryModal';
@@ -48,12 +48,6 @@ export function ServicesPanel() {
   const [editTarget, setEditTarget] = useState<Service | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Service | null>(null);
   const [historyTarget, setHistoryTarget] = useState<Service | null>(null);
-
-  const categories = useQuery({
-    queryKey: ['reference', 'service-categories', 'active-options'],
-    queryFn: () => listReference('service-categories', { status: 'ACTIVE', limit: 100 }),
-    select: (d) => d.items,
-  });
 
   const params: catalogApi.ListServicesParams = {
     page,
@@ -114,12 +108,14 @@ export function ServicesPanel() {
 
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Input placeholder="Kod yoki nom…" leftIcon={<Search className="size-[18px]" />} value={searchInput} onChange={(e) => setSearchInput(e.target.value)} aria-label="Qidiruv" />
-        <Select value={filters.categoryId} onChange={(e) => setFilter('categoryId', e.target.value)} aria-label="Kategoriya bo'yicha filtr">
-          <option value="">Barcha kategoriyalar</option>
-          {(categories.data ?? []).map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </Select>
+        <RefCombobox
+          kind="service-categories"
+          ariaLabel="Kategoriya bo'yicha filtr"
+          placeholder="Barcha kategoriyalar"
+          allowClear
+          value={filters.categoryId ? Number(filters.categoryId) : null}
+          onChange={(v) => setFilter('categoryId', v ? String(v) : '')}
+        />
         <Select value={filters.status} onChange={(e) => setFilter('status', e.target.value)} aria-label="Holat bo'yicha filtr">
           <option value="">Barcha holatlar</option>
           <option value="ACTIVE">Faol</option>
