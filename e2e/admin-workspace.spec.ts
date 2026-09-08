@@ -191,9 +191,16 @@ test.describe('admin workspace', () => {
 
     // Mobile: the drawer opens from the hamburger and exposes the nav.
     await page.setViewportSize({ width: 360, height: 780 });
-    await page.getByRole('button', { name: 'Menyu', exact: true }).click();
+    const hamburger = page.getByRole('button', { name: 'Menyu', exact: true });
+    await hamburger.click();
     const drawer = page.getByRole('dialog', { name: 'Navigatsiya' });
     await expect(drawer.getByRole('link', { name: 'Xodimlar' })).toBeVisible();
+    // Escape closes the drawer and restores focus to the hamburger (aria-modal a11y).
+    await page.keyboard.press('Escape');
+    await expect(drawer).toBeHidden();
+    await expect(hamburger).toBeFocused();
+    // Reopen + close via the ✕ button.
+    await hamburger.click();
     await drawer.getByRole('button', { name: 'Menyuni yopish' }).click();
     await expect(drawer).toBeHidden();
 

@@ -32,10 +32,29 @@ test.describe('manual employee password recovery', () => {
     // Create the target employee via the API (admin session + CSRF). Tolerates a
     // 409 if a prior run within the DB lifetime already created it.
     const token = await csrfToken(admin);
+    // Own an ISOLATED branch so this throwaway employee never inflates another spec's
+    // branch-scoped member count (the directory spec asserts an exact branch total).
+    const RECOVERY_BRANCH = 'E2E Recovery Branch';
     const branchesRes = await admin.request.get('/api/v1/branches');
     expect(branchesRes.ok(), `branches failed: ${branchesRes.status()}`).toBeTruthy();
-    const branches = (await branchesRes.json()).branches as { id: number }[];
-    expect(branches.length, 'a seeded active branch is required').toBeGreaterThan(0);
+    let branch = ((await branchesRes.json()).branches as { id: number; name: string }[]).find(
+      (b) => b.name === RECOVERY_BRANCH,
+    );
+    if (!branch) {
+      const created = await admin.request.post('/api/v1/branches', {
+        headers: { 'x-csrf-token': token },
+        data: { name: RECOVERY_BRANCH, region: 'Toshkent shahri' },
+      });
+      expect([201, 409], `create branch status ${created.status()}`).toContain(created.status());
+      branch =
+        created.status() === 201
+          ? (await created.json()).branch
+          : (((await (await admin.request.get('/api/v1/branches')).json()).branches as {
+              id: number;
+              name: string;
+            }[]).find((b) => b.name === RECOVERY_BRANCH));
+    }
+    expect(branch, 'recovery branch resolved').toBeTruthy();
     const createRes = await admin.request.post('/api/v1/users', {
       headers: { 'x-csrf-token': token },
       data: {
@@ -43,20 +62,23 @@ test.describe('manual employee password recovery', () => {
         lastName: 'Xodim',
         phone: phoneE164,
         region: 'Toshkent shahri',
-        branchId: branches[0].id,
+        branchId: branch!.id,
         roleCode: 'USTA',
         password: initialPassword,
       },
     });
     expect([201, 409], `create user status ${createRes.status()}`).toContain(createRes.status());
 
-    // Issue the temporary password through the admin UI.
+    // Issue the temporary password through the admin UI. Phase 11A renamed the page
+    // heading to "Xodimlar" and moved per-row actions into an accessible row menu, so
+    // the reset is now reached via that menu rather than an inline button.
     await admin.goto('/app/admin/users');
-    await expect(admin.getByRole('heading', { name: /foydalanuvchilar/i })).toBeVisible();
+    await expect(admin.getByRole('heading', { name: 'Xodimlar' })).toBeVisible();
     await admin.getByLabel(/qidiruv/i).fill(phoneNational);
-    const resetBtn = admin.getByRole('button', { name: new RegExp(`${firstName} uchun vaqtinchalik parol`, 'i') });
-    await expect(resetBtn).toBeVisible();
-    await resetBtn.click();
+    const rowMenu = admin.getByRole('button', { name: new RegExp(`${firstName} Xodim — amallar`, 'i') });
+    await expect(rowMenu).toBeVisible();
+    await rowMenu.click();
+    await admin.getByRole('menuitem', { name: /vaqtinchalik parol/i }).click();
 
     const dialog = admin.getByRole('dialog');
     await dialog.getByLabel(/joriy parolingiz/i).fill(USERS.ADMIN.password);

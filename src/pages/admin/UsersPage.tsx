@@ -58,6 +58,7 @@ export function UsersPage() {
   const params: usersApi.ListUsersParams = {
     page,
     limit: pageSize,
+    excludeSelf: true, // the directory never lists the current viewer (own profile handles them)
     ...(filters.search ? { search: filters.search } : {}),
     ...(filters.role ? { role: filters.role as RoleCode } : {}),
     ...(filters.branchId ? { branchId: Number(filters.branchId) } : {}),

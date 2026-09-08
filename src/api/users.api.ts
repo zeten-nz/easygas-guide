@@ -8,6 +8,8 @@ export interface ListUsersParams {
   status?: UserStatus;
   page?: number;
   limit?: number;
+  /** Employee directory only: exclude the current caller from the results. */
+  excludeSelf?: boolean;
 }
 
 export interface ListUsersResult {

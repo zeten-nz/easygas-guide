@@ -23,19 +23,42 @@ export function AppShell() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
 
-  // Drawer: Escape closes, body scroll locks, focus moves into the panel. (Tapping
-  // a nav item closes it via the Sidebar's onNavigate; the backdrop/✕ also close it.)
+  // Drawer accessibility (it is role="dialog" aria-modal): body scroll locks, focus
+  // moves into the panel on open and is RESTORED to the trigger (hamburger) on close,
+  // Escape closes, and Tab is trapped inside. (Tapping a nav item closes it via the
+  // Sidebar's onNavigate; the backdrop/✕ also close it.)
   useEffect(() => {
     if (!drawerOpen) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const panel = drawerRef.current;
+    const focusables = () =>
+      Array.from(panel?.querySelectorAll<HTMLElement>('a[href],button:not([disabled])') ?? []);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setDrawerOpen(false);
+      if (e.key === 'Escape') {
+        setDrawerOpen(false);
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const items = focusables();
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === first || active === panel)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
-    drawerRef.current?.querySelector<HTMLElement>('a,button')?.focus();
+    focusables()[0]?.focus();
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
+      previouslyFocused?.focus?.(); // restore focus to the hamburger
     };
   }, [drawerOpen]);
 
