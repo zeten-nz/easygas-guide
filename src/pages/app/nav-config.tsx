@@ -4,8 +4,10 @@ import {
   ClipboardList,
   Contact,
   Home,
+  Library,
   ListChecks,
   ShieldAlert,
+  Tag,
   UserPlus,
   Users,
   Wrench,
@@ -59,6 +61,13 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    label: 'Katalog',
+    items: [
+      { to: '/app/catalog/products', label: 'Narx bazasi', icon: Tag, permission: 'catalog.view' },
+      { to: '/app/reference', label: "Ma'lumotnomalar", icon: Library, permission: 'catalog.view' },
+    ],
+  },
+  {
     label: 'Xavfsizlik',
     items: [{ to: '/app/admin/risk-policy', label: 'Xavf siyosati', icon: ShieldAlert, permission: 'risk.matrix.approve' }],
   },
@@ -82,5 +91,7 @@ export function activeSectionLabel(pathname: string): string | null {
     }
   }
   if (pathname === '/app/profile') return 'Mening profilim';
+  // Both price-base tabs (products/services) belong to the same "Narx bazasi" section.
+  if (pathname.startsWith('/app/catalog')) return 'Narx bazasi';
   return best?.label ?? null;
 }
