@@ -21,6 +21,8 @@ import { NotFoundPage } from '../pages/app/NotFoundPage';
  * chunk fetch is caught by <RouteErrorBoundary/> there.
  */
 const RegisterPage = lazy(() => import('../pages/auth/RegisterPage').then((m) => ({ default: m.RegisterPage })));
+const ProfilePage = lazy(() => import('../pages/app/ProfilePage').then((m) => ({ default: m.ProfilePage })));
+const UserDetailPage = lazy(() => import('../pages/admin/UserDetailPage').then((m) => ({ default: m.UserDetailPage })));
 const ForgotPasswordPage = lazy(() => import('../pages/auth/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
 const RegistrationRequestsPage = lazy(() => import('../pages/admin/RegistrationRequestsPage').then((m) => ({ default: m.RegistrationRequestsPage })));
 const UsersPage = lazy(() => import('../pages/admin/UsersPage').then((m) => ({ default: m.UsersPage })));
@@ -56,6 +58,8 @@ export const router = createBrowserRouter([
         element: <AppShell />,
         children: [
           { index: true, element: <HomePage /> },
+          // Own profile — any authenticated user (self-scoped; no permission gate).
+          { path: 'profile', element: <ProfilePage /> },
           // UX-only guards — the backend enforces every permission per request.
           {
             element: <PermissionRoute permission="registration.review" />,
@@ -63,7 +67,10 @@ export const router = createBrowserRouter([
           },
           {
             element: <PermissionRoute permission="users.view" />,
-            children: [{ path: 'admin/users', element: <UsersPage /> }],
+            children: [
+              { path: 'admin/users', element: <UsersPage /> },
+              { path: 'admin/users/:id', element: <UserDetailPage /> },
+            ],
           },
           {
             element: <PermissionRoute permission="branches.manage" />,

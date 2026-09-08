@@ -20,12 +20,10 @@ export function ProtectedRoute() {
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   // §D — a temporary-password session must change the password before reaching any
   // app screen. The server enforces this too; here we just keep the UI consistent.
+  // (/change-password itself stays reachable — it also serves the voluntary change
+  // opened from "Mening profilim".)
   if (user.mustChangePassword && location.pathname !== '/change-password') {
     return <Navigate to="/change-password" replace />;
-  }
-  // A user who no longer needs the change should never sit on the forced screen.
-  if (!user.mustChangePassword && location.pathname === '/change-password') {
-    return <Navigate to="/app" replace />;
   }
   return <Outlet />;
 }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useMutation } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { KeyRound } from 'lucide-react';
 import { AuthLayout } from './AuthLayout';
 import { PasswordInput } from '../../components/ui/PasswordInput';
@@ -18,17 +19,20 @@ interface FormValues {
 }
 
 /**
- * §D first-login password change. Reached when the session is on an admin-issued
- * temporary password (`user.mustChangePassword`). The route guard forces the user
- * here and blocks the rest of the app until the change succeeds — the server
- * enforces the same restriction, so this is UX, not the control.
- *
- * The "current password" here is the temporary one the admin handed over.
+ * Password change — serves two modes with the SAME server endpoint:
+ *  - FORCED (`user.mustChangePassword`): reached when the session is on an
+ *    admin-issued temporary password. The route guard forces the user here and
+ *    blocks the rest of the app until the change succeeds (server-enforced too);
+ *    the "current" password is the temporary one.
+ *  - VOLUNTARY: reached from "Mening profilim → Parolni o'zgartirish"; the
+ *    "current" password is the user's real password.
+ * Either way the server revokes all sessions and issues this device a fresh one.
  */
 export function ChangePasswordPage() {
   const navigate = useNavigate();
-  const { setUser, logout } = useAuth();
+  const { user, setUser, logout } = useAuth();
   const [serverError, setServerError] = useState<string | null>(null);
+  const forced = !!user?.mustChangePassword;
 
   const {
     register,
@@ -41,7 +45,8 @@ export function ChangePasswordPage() {
     mutationFn: authApi.changePassword,
     onSuccess: (updated) => {
       setUser(updated); // mustChangePassword is now false → the guard releases the app
-      navigate('/app', { replace: true });
+      if (!forced) toast.success("Parol o'zgartirildi");
+      navigate(forced ? '/app' : '/app/profile', { replace: true });
     },
     onError: (err) => setServerError(getApiError(err).message),
   });
@@ -49,22 +54,36 @@ export function ChangePasswordPage() {
   return (
     <AuthLayout
       footer={
-        <button
-          type="button"
-          onClick={() => void logout()}
-          className="text-sm font-medium text-[var(--text-2)] transition-colors hover:text-[var(--text-1)]"
-        >
-          Chiqish
-        </button>
+        forced ? (
+          <button
+            type="button"
+            onClick={() => void logout()}
+            className="text-sm font-medium text-[var(--text-2)] transition-colors hover:text-[var(--text-1)]"
+          >
+            Chiqish
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => navigate('/app/profile')}
+            className="text-sm font-medium text-[var(--text-2)] transition-colors hover:text-[var(--text-1)]"
+          >
+            Bekor qilish
+          </button>
+        )
       }
     >
       <div className="flex flex-col items-center text-center">
         <span className="flex size-14 items-center justify-center rounded-full bg-brand-500/15">
           <KeyRound className="size-8 text-brand-400" />
         </span>
-        <h1 className="mt-4 text-xl font-bold text-[var(--text-1)]">Yangi parol o'rnating</h1>
+        <h1 className="mt-4 text-xl font-bold text-[var(--text-1)]">
+          {forced ? "Yangi parol o'rnating" : "Parolni o'zgartirish"}
+        </h1>
         <p className="mt-2 text-sm leading-relaxed text-[var(--text-2)]">
-          Bu vaqtinchalik parol. Ishni davom ettirish uchun uni almashtiring.
+          {forced
+            ? 'Bu vaqtinchalik parol. Ishni davom ettirish uchun uni almashtiring.'
+            : 'Joriy parolingizni tasdiqlang va yangi parol tanlang.'}
         </p>
       </div>
 
@@ -79,11 +98,11 @@ export function ChangePasswordPage() {
         {serverError && <Alert tone="error">{serverError}</Alert>}
 
         <PasswordInput
-          label="Vaqtinchalik parol"
+          label={forced ? 'Vaqtinchalik parol' : 'Joriy parol'}
           autoComplete="current-password"
-          placeholder="Administrator bergan parol"
+          placeholder={forced ? 'Administrator bergan parol' : 'Joriy parolingiz'}
           error={errors.currentPassword?.message}
-          {...register('currentPassword', { required: 'Vaqtinchalik parolni kiriting' })}
+          {...register('currentPassword', { required: forced ? 'Vaqtinchalik parolni kiriting' : 'Joriy parolni kiriting' })}
         />
         <PasswordInput
           label="Yangi parol"
@@ -93,7 +112,7 @@ export function ChangePasswordPage() {
           {...register('newPassword', {
             required: 'Yangi parol kiritilishi shart',
             minLength: { value: 8, message: 'Kamida 8 ta belgi' },
-            validate: (v) => v !== getValues('currentPassword') || 'Yangi parol vaqtinchalik paroldan farq qilishi kerak',
+            validate: (v) => v !== getValues('currentPassword') || 'Yangi parol joriy paroldan farq qilishi kerak',
           })}
         />
         <PasswordInput

@@ -1,36 +1,43 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { ChevronsRight, ClipboardList, Plus } from 'lucide-react';
+import { ClipboardList, MoreHorizontal, Plus, SquareArrowOutUpRight, Trash2 } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
+import { Select } from '../../../components/ui/Select';
 import { Alert } from '../../../components/ui/Alert';
 import { Spinner } from '../../../components/ui/Spinner';
 import { Modal } from '../../../components/ui/Modal';
+import { DropdownMenu, MenuItem } from '../../../components/ui/DropdownMenu';
+import { TemplateStatusBadge, VersionChips } from './template-status';
+import { templateStatus } from './template-lifecycle';
+import { DeleteTemplateDialog } from './DeleteTemplateDialog';
 import * as templatesApi from '../../../api/templates.api';
 import { getApiError } from '../../../api/client';
-import { VERSION_STATUS_LABELS, type VersionStatus } from '../../../types/entities';
-import { cn } from '../../../lib/utils';
+import type { ChecklistTemplate } from '../../../types/entities';
 
-const STATUS_BADGE: Record<VersionStatus, string> = {
-  DRAFT: 'bg-amber-500/15 text-amber-700',
-  PUBLISHED: 'bg-emerald-500/15 text-emerald-700',
-  ARCHIVED: 'bg-ink-500/15 text-ink-500',
-};
+type StatusFilter = '' | 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 
 export function TemplatesPage() {
   const navigate = useNavigate();
   const [createOpen, setCreateOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
+  const [deleteTarget, setDeleteTarget] = useState<ChecklistTemplate | null>(null);
 
   const templatesQuery = useQuery({ queryKey: ['templates', 'list'], queryFn: templatesApi.fetchTemplates });
 
+  const filtered = useMemo(() => {
+    const list = templatesQuery.data ?? [];
+    return statusFilter ? list.filter((t) => templateStatus(t) === statusFilter) : list;
+  }, [templatesQuery.data, statusFilter]);
+
   return (
     <div className="mx-auto max-w-4xl">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-[var(--text-1)]">Checklist shablonlari</h1>
+          <h1 className="text-2xl font-bold text-[var(--text-1)]">Checklist shablonlari</h1>
           <p className="mt-1 text-sm text-[var(--text-2)]">
             Yangi ishlar faol (nashr qilingan) versiyadan foydalanadi. Eski ishlar o'z versiyasini saqlab qoladi.
           </p>
@@ -41,49 +48,98 @@ export function TemplatesPage() {
         </Button>
       </div>
 
+      <div className="mt-6 sm:max-w-xs">
+        <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as StatusFilter)} aria-label="Holat bo'yicha filtr">
+          <option value="">Barcha holatlar</option>
+          <option value="PUBLISHED">Faol</option>
+          <option value="DRAFT">Qoralama</option>
+          <option value="ARCHIVED">Arxivlangan</option>
+        </Select>
+      </div>
+
       <div className="mt-5 space-y-3">
-        {templatesQuery.isLoading && (
+        {templatesQuery.isLoading ? (
           <div className="flex justify-center py-16">
-            <Spinner className="size-7 text-brand-500" />
+            <Spinner className="size-7 text-blue-600" />
           </div>
-        )}
-
-        {templatesQuery.isError && <Alert tone="error">{getApiError(templatesQuery.error).message}</Alert>}
-
-        {templatesQuery.data?.length === 0 && (
+        ) : templatesQuery.isError ? (
+          <Alert tone="error">{getApiError(templatesQuery.error).message}</Alert>
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[var(--border-1)] py-16 text-[var(--text-2)]">
-            <ClipboardList className="size-8" />
-            <p className="text-sm">Hozircha shablonlar yo'q</p>
+            <ClipboardList className="size-8 text-[var(--text-3)]" />
+            <p className="text-sm">{statusFilter ? 'Bu holatda shablon yo\'q' : "Hozircha shablonlar yo'q"}</p>
           </div>
-        )}
-
-        {templatesQuery.data?.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => navigate(`/app/admin/templates/${t.id}`)}
-            className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[var(--border-1)] bg-[var(--surface)] p-4 text-left transition-colors hover:border-brand-500/40"
-          >
-            <div className="min-w-0">
-              <p className="font-semibold text-[var(--text-1)]">{t.name}</p>
-              {t.description && <p className="mt-0.5 text-sm text-[var(--text-2)]">{t.description}</p>}
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {t.versions.map((v) => (
-                  <span
-                    key={v.id}
-                    className={cn('rounded-full px-2.5 py-0.5 text-xs font-semibold', STATUS_BADGE[v.status])}
+        ) : (
+          filtered.map((t) => (
+            <div
+              key={t.id}
+              className="flex items-start justify-between gap-3 rounded-2xl border border-[var(--border-1)] bg-[var(--surface)] p-4"
+            >
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link
+                    to={`/app/admin/templates/${t.id}`}
+                    className="font-semibold text-[var(--text-1)] hover:text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
                   >
-                    v{v.version} — {VERSION_STATUS_LABELS[v.status]}
-                  </span>
-                ))}
+                    {t.name}
+                  </Link>
+                  <TemplateStatusBadge template={t} />
+                </div>
+                {t.description && <p className="mt-0.5 text-sm text-[var(--text-2)]">{t.description}</p>}
+                <div className="mt-2">
+                  <VersionChips template={t} />
+                </div>
               </div>
+
+              <DropdownMenu
+                align="end"
+                button={
+                  <button
+                    type="button"
+                    aria-label={`${t.name} — amallar`}
+                    className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-[var(--text-2)] hover:bg-[var(--surface-2)] hover:text-[var(--text-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
+                  >
+                    <MoreHorizontal className="size-5" />
+                  </button>
+                }
+              >
+                {(close) => (
+                  <>
+                    <MenuItem
+                      icon={<SquareArrowOutUpRight className="size-[18px]" />}
+                      onClick={() => {
+                        close();
+                        navigate(`/app/admin/templates/${t.id}`);
+                      }}
+                    >
+                      Ochish
+                    </MenuItem>
+                    <MenuItem
+                      icon={<Trash2 className="size-[18px]" />}
+                      danger
+                      disabled={t.deletable === false}
+                      onClick={() => {
+                        close();
+                        setDeleteTarget(t);
+                      }}
+                    >
+                      O'chirish
+                    </MenuItem>
+                    {t.deletable === false && (
+                      <p className="px-3 pb-1.5 pt-1 text-xs text-[var(--text-3)]">
+                        Nashr qilingan yoki arxivlangan shablon o'chirilmaydi — tarixni saqlaydi.
+                      </p>
+                    )}
+                  </>
+                )}
+              </DropdownMenu>
             </div>
-            <ChevronsRight className="size-5 shrink-0 text-[var(--text-2)]" />
-          </button>
-        ))}
+          ))
+        )}
       </div>
 
       {createOpen && <CreateTemplateModal onClose={() => setCreateOpen(false)} />}
+      {deleteTarget && <DeleteTemplateDialog template={deleteTarget} onClose={() => setDeleteTarget(null)} />}
     </div>
   );
 }

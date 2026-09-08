@@ -8,6 +8,8 @@ export interface ListUsersParams {
   status?: UserStatus;
   page?: number;
   limit?: number;
+  /** Employee directory only: exclude the current caller from the results. */
+  excludeSelf?: boolean;
 }
 
 export interface ListUsersResult {
@@ -43,6 +45,12 @@ export async function fetchUsers(params: ListUsersParams): Promise<ListUsersResu
 
 export async function fetchUser(id: number): Promise<UserDetail> {
   const { data } = await api.get(`/users/${id}`);
+  return data.user;
+}
+
+/** §C own profile — self-scoped (no users.view needed). Returns the caller's UserDetail. */
+export async function fetchOwnProfile(): Promise<UserDetail> {
+  const { data } = await api.get('/users/me');
   return data.user;
 }
 
