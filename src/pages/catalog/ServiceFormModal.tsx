@@ -120,7 +120,7 @@ export function ServiceFormModal({ editService, onClose }: { editService: Servic
         </div>
         <p className="text-xs text-[var(--text-3)]">Soliq siyosati universal emas — faqat aniq bo'lsa kiriting.</p>
         {isEdit && <Input label="Narx o'zgarishi sababi (ixtiyoriy)" placeholder="Narx o'zgarsa, tarixda saqlanadi" {...register('priceReason')} />}
-        <div className="flex justify-end gap-3 pt-1">
+        <div className="sticky bottom-0 -mx-5 mt-2 flex justify-end gap-3 border-t border-[var(--border-1)] bg-[var(--surface)] px-5 py-3 sm:-mx-6 sm:px-6">
           <Button type="button" variant="ghost" onClick={onClose} disabled={mutation.isPending}>Bekor qilish</Button>
           <Button type="submit" loading={mutation.isPending}>{isEdit ? 'Saqlash' : 'Yaratish'}</Button>
         </div>

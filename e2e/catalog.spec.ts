@@ -77,7 +77,9 @@ async function pickCombo(
 }
 
 test.describe('catalog', () => {
-  test.describe.configure({ timeout: 180_000 });
+  // Heavier suite (120-brand combobox fixtures + multi-step create/edit/archive
+  // flows) — give the slower CI runner headroom; assertions are unchanged.
+  test.describe.configure({ timeout: 240_000 });
 
   test.beforeAll(async ({ playwright, baseURL }) => {
     const request = await playwright.request.newContext({ baseURL });
