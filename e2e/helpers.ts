@@ -9,6 +9,7 @@ export const USERS = {
   USTA: { phone: '+998901000001', password: 'EasyGasDev2026!' },
   MASTER: { phone: '+998901000002', password: 'EasyGasDev2026!' },
   SIFAT: { phone: '+998901000004', password: 'EasyGasDev2026!' },
+  ADMIN: { phone: '+998901000005', password: 'EasyGasDev2026!' },
 };
 
 const FLOW_CODE: Record<string, string> = { HAPPY: 'HAP', BLOCK: 'BLK', ASSIGN: 'ASG', GPS: 'GPS', VIEW: 'VIW', REOPEN: 'RE' };

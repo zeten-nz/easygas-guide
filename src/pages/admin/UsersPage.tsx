@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, Lock, LockOpen, Pencil, Plus, Search, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, KeyRound, Lock, LockOpen, Pencil, Plus, Search, Users } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
@@ -9,6 +9,7 @@ import { Alert } from '../../components/ui/Alert';
 import { Spinner } from '../../components/ui/Spinner';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { UserFormModal } from './UserFormModal';
+import { ResetPasswordModal } from './ResetPasswordModal';
 import { useAuth } from '../../features/auth/auth-context';
 import * as usersApi from '../../api/users.api';
 import { fetchBranches } from '../../api/branches.api';
@@ -32,6 +33,7 @@ export function UsersPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<UserDetail | null>(null);
   const [blockTarget, setBlockTarget] = useState<UserDetail | null>(null);
+  const [resetTarget, setResetTarget] = useState<UserDetail | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -207,6 +209,17 @@ export function UsersPage() {
                   <span className="hidden sm:inline">Tahrirlash</span>
                 </Button>
               )}
+              {can(actor, 'users.reset_password') && u.id !== actor?.id && (
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={() => setResetTarget(u)}
+                  aria-label={`${u.firstName} uchun vaqtinchalik parol yaratish`}
+                >
+                  <KeyRound className="size-4" />
+                  <span className="hidden sm:inline">Vaqtinchalik parol</span>
+                </Button>
+              )}
               {can(actor, 'users.block') && u.id !== actor?.id && (
                 <Button
                   variant={u.status === 'ACTIVE' ? 'danger-outline' : 'secondary'}
@@ -254,6 +267,8 @@ export function UsersPage() {
           editUser={editTarget}
         />
       )}
+
+      {resetTarget && <ResetPasswordModal target={resetTarget} onClose={() => setResetTarget(null)} />}
 
       <ConfirmDialog
         open={!!blockTarget}

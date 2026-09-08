@@ -9,6 +9,7 @@ import { AppShell } from '../pages/app/AppShell';
 // Eager: the first screens a user sees (guest login, authenticated home) and the
 // shell/guards themselves — splitting these would only add a fetch to first paint.
 import { LoginPage } from '../pages/auth/LoginPage';
+import { ChangePasswordPage } from '../pages/auth/ChangePasswordPage';
 import { HomePage } from '../pages/app/HomePage';
 import { NotFoundPage } from '../pages/app/NotFoundPage';
 
@@ -47,6 +48,9 @@ export const router = createBrowserRouter([
   {
     element: <ProtectedRoute />,
     children: [
+      // §D forced first-login change — a full-screen branded route OUTSIDE the app
+      // shell (no nav to escape to). The guard routes temp-password sessions here.
+      { path: '/change-password', element: <ChangePasswordPage /> },
       {
         path: '/app',
         element: <AppShell />,

@@ -39,6 +39,11 @@ export function LoginPage() {
     mutationFn: authApi.login,
     onSuccess: (user) => {
       setUser(user);
+      // §D — a temporary-password login goes straight to the forced change screen.
+      if (user.mustChangePassword) {
+        navigate('/change-password', { replace: true });
+        return;
+      }
       const from = (location.state as { from?: string } | null)?.from;
       navigate(from ?? '/app', { replace: true });
     },
@@ -99,7 +104,7 @@ export function LoginPage() {
             to="/forgot-password"
             className="text-sm font-medium text-brand-400 transition-colors hover:text-brand-300"
           >
-            Parolni tiklash
+            Parolni unutdingizmi?
           </Link>
         </div>
 

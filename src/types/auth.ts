@@ -20,6 +20,7 @@ export type Permission =
   | 'users.update'
   | 'users.block'
   | 'users.assign_role'
+  | 'users.reset_password'
   | 'branches.manage'
   | 'registration.review'
   | 'customers.view'
@@ -54,6 +55,12 @@ export interface User {
   role: RoleCode;
   status: UserStatus;
   avatarUrl: string | null;
+  /**
+   * True when the session is on an admin-issued TEMPORARY password: the user must
+   * change it before anything else (enforced server-side; the client mirrors it
+   * by routing to the change-password screen).
+   */
+  mustChangePassword: boolean;
   permissions: string[];
 }
 
