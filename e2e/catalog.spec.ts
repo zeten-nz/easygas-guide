@@ -149,17 +149,25 @@ test.describe('catalog', () => {
     await page.getByRole('link', { name: 'Xizmatlar' }).click();
     await expect(page).toHaveURL(/\/app\/catalog\/services/);
 
-    const code = `E2E-S-${test.info().project.name === 'chromium' ? 'cr' : 'mo'}-${Date.now()}`;
-    await page.getByRole('button', { name: /yangi xizmat/i }).click();
+    const proj = test.info().project.name === 'chromium' ? 'cr' : 'mo';
+    const code = `E2E-S-${proj}-${Date.now()}`;
+    // Project-scoped name that does NOT embed the CTA phrase "Yangi xizmat": the
+    // header create button IS exactly "Yangi xizmat", while a row's kebab menu is
+    // "<name> — amallar". A regex/substring match of /yangi xizmat/ would resolve
+    // to BOTH once a prior run left such a row, so target the create CTA exactly.
+    const name = `E2E Xizmat ${proj}`;
+    await page.getByRole('button', { name: 'Yangi xizmat', exact: true }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel('Kod', { exact: true }).fill(code);
-    await dialog.getByLabel('Nomi', { exact: true }).fill('E2E Yangi xizmat');
+    await dialog.getByLabel('Nomi', { exact: true }).fill(name);
     await pickCombo(dialog, 'Kategoriya', SVC_CAT);
     await dialog.getByLabel(/Narx \(so'm\)/).fill('300000');
     await dialog.getByRole('button', { name: /^yaratish$/i }).click();
     await expect(dialog).toBeHidden();
+    // Filtering by the unique code yields exactly one row → the name link is
+    // unambiguous (no .first() needed to paper over a duplicate).
     await page.getByLabel('Qidiruv').fill(code);
-    await expect(page.getByRole('link', { name: 'E2E Yangi xizmat' }).first()).toBeVisible();
+    await expect(page.getByRole('link', { name })).toBeVisible();
     clean();
   });
 
@@ -212,6 +220,52 @@ test.describe('catalog', () => {
     const editDialog = page.getByRole('dialog');
     await expect(editDialog.getByLabel('Brend (ixtiyoriy)')).toContainText(archBrand);
     await expect(editDialog.getByText('(arxivlangan)')).toBeVisible();
+    clean();
+  });
+
+  // Regression for the mobile bottom-sheet failure: the edit modal's action
+  // buttons live in a FIXED footer OUTSIDE the scroll region, so they stay
+  // reachable even while every reference combobox is still resolving. We slow the
+  // reference lookups (controlled delay) so the comboboxes are provably mid-load
+  // when we click the footer; all OTHER requests hit the real API unchanged.
+  test('modal footer action stays reachable while reference comboboxes are still loading', async ({ page }) => {
+    const clean = guardPage(page);
+    const proj = test.info().project.name === 'chromium' ? 'cr' : 'mo';
+    await loginAs(page, USERS.ADMIN);
+
+    // A product to edit — company + category are valid, so the edit can be saved
+    // purely from the ids already in form state (no reference response required).
+    const token = await csrfToken(page);
+    const h = { 'x-csrf-token': token };
+    const co = (await (await page.request.get(`/api/v1/reference/companies?search=${encodeURIComponent(CO)}`)).json()).items[0].id;
+    const cat = (await (await page.request.get(`/api/v1/reference/product-categories?search=${encodeURIComponent(OTHER_CAT)}`)).json()).items[0].id;
+    const code = `E2E-LOAD-${proj}-${Date.now()}`;
+    // priceMinor is integer MINOR units (÷100 = so'm): 50_000_000 → 500 000 so'm.
+    const created = await page.request.post('/api/v1/products', { headers: h, data: { code, name: `E2E Load ${proj}`, companyId: co, categoryId: cat, priceMinor: 50_000_000 } });
+    expect(created.ok(), `create product: ${created.status()}`).toBeTruthy();
+
+    // Delay the modal's reference lookups so they are still in flight when the
+    // footer is clicked; the response itself is the REAL one, just later.
+    await page.route('**/api/v1/reference/**', async (route) => {
+      await new Promise((r) => setTimeout(r, 1500));
+      await route.continue();
+    });
+
+    await page.goto('/app/catalog/products');
+    await page.getByLabel('Qidiruv').fill(code);
+    await page.getByRole('link', { name: `E2E Load ${proj}` }).click();
+    await page.getByRole('button', { name: /tahrirlash/i }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel(/Narx \(so'm\)/).fill('600000');
+    // Must click immediately — not blocked by the still-loading comboboxes nor by
+    // any scroll/overlap on the bottom-sheet. (Playwright's own actionability wait
+    // is the assertion; no force / evaluate / arbitrary sleep.)
+    await dialog.getByRole('button', { name: /^saqlash$/i }).click();
+    await expect(dialog).toBeHidden();
+    await page.unroute('**/api/v1/reference/**');
+
+    // The edit persisted (footer action truly fired, not just dismissed).
+    await expect(page.getByText(/500 000 so'm\s*→\s*600 000 so'm/)).toBeVisible();
     clean();
   });
 

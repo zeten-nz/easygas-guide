@@ -95,21 +95,30 @@ export function Modal({ open, onClose, title, children, className, footer }: Mod
           'max-h-[92dvh] w-full rounded-t-3xl bg-[var(--surface)] shadow-2xl sm:max-w-lg sm:rounded-3xl',
           'border border-[var(--border-1)]',
           // Without a fixed footer: the whole panel scrolls (original behavior).
-          // With one: a flex column so only the body scrolls and the footer stays put.
-          footer ? 'flex flex-col overflow-hidden' : 'overflow-y-auto p-5 sm:p-6',
+          // With one: a 3-row grid (header / scrollable body / footer). Grid tracks
+          // give the body a DEFINITE size — `minmax(0,1fr)` lets it shrink and its
+          // own `overflow-y-auto` scroll — so its content can never grow past the
+          // footer. (Headless Linux Chromium was compositing the scroll body's
+          // layer ABOVE the later-DOM footer, so a body field stole pointer events
+          // from the footer's action button on the mobile bottom-sheet; the footer
+          // is given an explicit stacking level below to settle that paint order.)
+          footer ? 'grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden' : 'overflow-y-auto p-5 sm:p-6',
           className,
         )}
       >
         {footer ? (
           <>
-            <div className="flex shrink-0 items-center justify-between gap-4 p-5 pb-3 sm:px-6 sm:pt-6">
+            <div className="flex items-center justify-between gap-4 p-5 pb-3 sm:px-6 sm:pt-6">
               <h2 className="text-lg font-bold text-[var(--text-1)]">{title}</h2>
               <button type="button" onClick={onClose} aria-label="Yopish" className="rounded-lg p-1.5 text-[var(--text-2)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text-1)]">
                 <X className="size-5" />
               </button>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-2 sm:px-6">{children}</div>
-            <div className="shrink-0 border-t border-[var(--border-1)] bg-[var(--surface)] p-4 sm:px-6 sm:py-4">{footer}</div>
+            <div className="min-h-0 overflow-y-auto px-5 pb-2 sm:px-6">{children}</div>
+            {/* relative + z-10 keeps the pinned footer the top hit-target over the
+                scroll body (see the grid note above); the combobox dropdown is
+                z-50, so it still opens above the footer. */}
+            <div className="relative z-10 border-t border-[var(--border-1)] bg-[var(--surface)] p-4 sm:px-6 sm:py-4">{footer}</div>
           </>
         ) : (
           <>
