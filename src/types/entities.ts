@@ -164,6 +164,9 @@ export interface ChecklistTemplate {
   name: string;
   description: string | null;
   versions: TemplateVersion[];
+  /** Advisory (re-checked on delete): true only when every version is DRAFT. */
+  deletable?: boolean;
+  deletableReason?: 'HAS_PUBLISHED_OR_ARCHIVED_HISTORY' | null;
 }
 
 export interface JobStepMeasurement extends MeasurementDef {

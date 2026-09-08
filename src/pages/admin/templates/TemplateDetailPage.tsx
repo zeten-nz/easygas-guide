@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
@@ -19,14 +19,17 @@ import { Alert } from '../../../components/ui/Alert';
 import { Spinner } from '../../../components/ui/Spinner';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { StepFormModal } from './StepFormModal';
+import { DeleteTemplateDialog } from './DeleteTemplateDialog';
+import { STATUS_LABEL } from './template-lifecycle';
 import * as templatesApi from '../../../api/templates.api';
 import { getApiError } from '../../../api/client';
-import { VERSION_STATUS_LABELS, type TemplateStep, type TemplateVersion } from '../../../types/entities';
+import { type TemplateStep, type TemplateVersion } from '../../../types/entities';
 import { cn } from '../../../lib/utils';
 
 export function TemplateDetailPage() {
   const { id } = useParams();
   const templateId = Number(id);
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null);
@@ -35,6 +38,7 @@ export function TemplateDetailPage() {
   const [publishTarget, setPublishTarget] = useState<TemplateVersion | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<TemplateVersion | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TemplateStep | null>(null);
+  const [deleteTemplateOpen, setDeleteTemplateOpen] = useState(false);
 
   const templateQuery = useQuery({
     queryKey: ['templates', 'detail', templateId],
@@ -138,16 +142,33 @@ export function TemplateDetailPage() {
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-[var(--text-1)]">{template.name}</h1>
+          <h1 className="text-2xl font-bold text-[var(--text-1)]">{template.name}</h1>
           {template.description && <p className="mt-1 text-sm text-[var(--text-2)]">{template.description}</p>}
         </div>
-        {!hasDraft && (
-          <Button variant="secondary" onClick={() => newVersionMutation.mutate()} loading={newVersionMutation.isPending}>
-            <Plus className="size-4" />
-            Yangi versiya
-          </Button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {!hasDraft && (
+            <Button variant="secondary" onClick={() => newVersionMutation.mutate()} loading={newVersionMutation.isPending}>
+              <Plus className="size-4" />
+              Yangi versiya
+            </Button>
+          )}
+          {/* §D whole-template delete — only for an unused draft-only template. When
+              a version has been published the template carries history: archive it. */}
+          {template.deletable && (
+            <Button variant="danger-outline" onClick={() => setDeleteTemplateOpen(true)}>
+              <Trash2 className="size-4" />
+              Shablonni o'chirish
+            </Button>
+          )}
+        </div>
       </div>
+
+      {!template.deletable && (
+        <p className="mt-2 text-[13px] text-[var(--text-3)]">
+          Bu shablon nashr qilingan yoki arxivlangan versiyaga ega — uni o'chirib bo'lmaydi (tarixiy ishlar himoyasi).
+          Kelajakdagi tanlovdan chiqarish uchun faol versiyani arxivlang.
+        </p>
+      )}
 
       {/* Version tabs */}
       <div className="mt-4 flex flex-wrap gap-2">
@@ -164,7 +185,7 @@ export function TemplateDetailPage() {
             )}
           >
             v{v.version}
-            <span className="ml-1.5 text-xs font-medium opacity-80">{VERSION_STATUS_LABELS[v.status]}</span>
+            <span className="ml-1.5 text-xs font-medium opacity-80">{STATUS_LABEL[v.status]}</span>
           </button>
         ))}
       </div>
@@ -174,7 +195,7 @@ export function TemplateDetailPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="font-bold text-[var(--text-1)]">
-                v{selectedVersion.version} · {VERSION_STATUS_LABELS[selectedVersion.status]}
+                v{selectedVersion.version} · {STATUS_LABEL[selectedVersion.status]}
               </p>
               <p className="mt-0.5 text-sm text-[var(--text-2)]">
                 {selectedVersion.steps?.length ?? 0} ta bosqich
@@ -346,6 +367,14 @@ export function TemplateDetailPage() {
       >
         «{deleteTarget?.name}» bosqichi qoralamadan o'chiriladi.
       </ConfirmDialog>
+
+      {deleteTemplateOpen && (
+        <DeleteTemplateDialog
+          template={template}
+          onClose={() => setDeleteTemplateOpen(false)}
+          onDeleted={() => navigate('/app/admin/templates')}
+        />
+      )}
     </div>
   );
 }

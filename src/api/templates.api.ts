@@ -84,3 +84,9 @@ export async function archiveVersion(templateId: number, versionId: number): Pro
   const { data } = await api.post(`/checklist-templates/${templateId}/versions/${versionId}/archive`);
   return data.template;
 }
+
+/** §D permanently delete an unused draft-only template. The server re-checks eligibility. */
+export async function deleteTemplate(templateId: number): Promise<{ id: number; name: string }> {
+  const { data } = await api.delete(`/checklist-templates/${templateId}`);
+  return data.deleted;
+}

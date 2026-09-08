@@ -1,124 +1,119 @@
-import { Suspense, useState, type ReactNode } from 'react';
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
+import { Menu, X } from 'lucide-react';
 import { RiskPolicyBanner } from '../../features/safety/RiskPolicyBanner';
 import { RouteFallback } from '../../app/RouteFallback';
 import { RouteErrorBoundary } from '../../app/RouteErrorBoundary';
 import { Brand } from '../../components/ui/Brand';
-import { LogOut, UserRound } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../features/auth/auth-context';
-import { can } from '../../lib/permissions';
-import { ROLE_LABELS, type Permission } from '../../types/auth';
-import { cn } from '../../lib/utils';
-
-/** Navigation is permission-driven (UX only — the backend enforces access). */
-const NAV_ITEMS: { to: string; label: string; permission: Permission; end?: boolean }[] = [
-  { to: '/app/my-jobs', label: 'Mening ishlarim', permission: 'checklist.execute' },
-  { to: '/app/jobs', label: 'Ishlar', permission: 'jobs.view' },
-  { to: '/app/customers', label: 'Mijozlar', permission: 'customers.view' },
-  { to: '/app/vehicles', label: 'Avtomobillar', permission: 'vehicles.view' },
-  { to: '/app/admin/users', label: 'Foydalanuvchilar', permission: 'users.view' },
-  { to: '/app/admin/templates', label: 'Shablonlar', permission: 'templates.manage' },
-  { to: '/app/admin/branches', label: 'Filiallar', permission: 'branches.manage' },
-  { to: '/app/admin/risk-policy', label: 'Xavf siyosati', permission: 'risk.matrix.approve' },
-  { to: '/app/admin/registration-requests', label: "So'rovlar", permission: 'registration.review' },
-];
+import { Sidebar } from './Sidebar';
+import { ProfileMenu } from './ProfileMenu';
+import { activeSectionLabel } from './nav-config';
 
 /**
- * Minimal authenticated shell for Phase 1: brand, current user + role, logout.
- * Role-specific dashboards arrive in later phases.
+ * Phase 11A workspace shell: a grouped left sidebar (desktop) / drawer (mobile),
+ * a compact top bar with page context + the account menu, and a wide content area
+ * suited to tables. Existing routes are unchanged — every page renders inside this
+ * shell. The risk-policy banner, route error boundary and lazy-route Suspense are
+ * preserved from the previous shell.
  */
 export function AppShell() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const [loggingOut, setLoggingOut] = useState(false);
+  const { user } = useAuth();
+  const location = useLocation();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawerRef = useRef<HTMLDivElement>(null);
+
+  // Drawer: Escape closes, body scroll locks, focus moves into the panel. (Tapping
+  // a nav item closes it via the Sidebar's onNavigate; the backdrop/✕ also close it.)
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDrawerOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    drawerRef.current?.querySelector<HTMLElement>('a,button')?.focus();
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [drawerOpen]);
 
   if (!user) return null;
 
-  const handleLogout = async () => {
-    setLoggingOut(true);
-    try {
-      await logout();
-    } finally {
-      navigate('/login', { replace: true });
-    }
-  };
+  const section = activeSectionLabel(location.pathname);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-[var(--bg)]">
-      <header className="sticky top-0 z-10 border-b border-[var(--border-1)] bg-[var(--surface)]/90 backdrop-blur">
-        <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between gap-4 px-4">
-          <Link to="/app" aria-label="EASY GAS — bosh sahifa" className="rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus)]">
-            {/* Above-the-fold primary logo: wordmark on the light header (eager). */}
-            <Brand variant="wordmark" height={30} priority decorative />
-          </Link>
+    <div className="min-h-dvh bg-[var(--bg)]">
+      {/* Desktop rail */}
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-[var(--border-1)] lg:block">
+        <Sidebar />
+      </aside>
 
-          <div className="flex items-center gap-3">
-            <div className="hidden items-center gap-2.5 sm:flex">
-              <span className="flex size-9 items-center justify-center rounded-full bg-[var(--surface-2)] text-[var(--text-2)]">
-                <UserRound className="size-5" />
-              </span>
-              <div className="leading-tight">
-                <p className="text-sm font-semibold text-[var(--text-1)]">
-                  {user.firstName} {user.lastName}
-                </p>
-                <p className="text-xs text-[var(--text-2)]">{ROLE_LABELS[user.role]}</p>
-              </div>
-            </div>
-
-            <Button variant="secondary" onClick={handleLogout} loading={loggingOut} aria-label="Chiqish">
-              <LogOut className="size-4" />
-              <span className="hidden sm:inline">Chiqish</span>
-            </Button>
+      {/* Mobile drawer */}
+      {drawerOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div
+            className="absolute inset-0 bg-black/40 motion-safe:transition-opacity"
+            onClick={() => setDrawerOpen(false)}
+            aria-hidden
+          />
+          <div
+            ref={drawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigatsiya"
+            className="absolute inset-y-0 left-0 w-72 max-w-[85%] border-r border-[var(--border-1)] shadow-2xl"
+          >
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(false)}
+              aria-label="Menyuni yopish"
+              className="absolute right-3 top-4 z-10 rounded-lg p-1.5 text-[var(--text-2)] hover:bg-[var(--surface-2)] hover:text-[var(--text-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
+            >
+              <X className="size-5" />
+            </button>
+            <Sidebar onNavigate={() => setDrawerOpen(false)} />
           </div>
         </div>
+      )}
 
-        {NAV_ITEMS.some((item) => can(user, item.permission)) && (
-          <nav
-            aria-label="Asosiy navigatsiya"
-            className="mx-auto flex w-full max-w-5xl gap-1 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          >
-            <ShellNavLink to="/app" end>
-              Bosh sahifa
-            </ShellNavLink>
-            {NAV_ITEMS.filter((item) => can(user, item.permission)).map((item) => (
-              <ShellNavLink key={item.to} to={item.to}>
-                {item.label}
-              </ShellNavLink>
-            ))}
-          </nav>
-        )}
-      </header>
+      {/* Main column (offset by the fixed rail on desktop) */}
+      <div className="flex min-h-dvh flex-col lg:pl-64">
+        <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-[var(--border-1)] bg-[var(--surface)]/90 px-4 backdrop-blur sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(true)}
+              aria-label="Menyu"
+              className="inline-flex size-10 items-center justify-center rounded-lg text-[var(--text-2)] hover:bg-[var(--surface-2)] hover:text-[var(--text-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 lg:hidden"
+            >
+              <Menu className="size-5" />
+            </button>
+            {/* Brand on mobile (the rail carries it on desktop); page context on desktop.
+                Eager so the (CSS-hidden at desktop widths) img still decodes — no broken logo. */}
+            <span className="lg:hidden">
+              <Brand variant="wordmark" height={26} priority decorative />
+            </span>
+            {section && (
+              <p className="hidden truncate text-sm font-medium text-[var(--text-2)] lg:block">{section}</p>
+            )}
+          </div>
+          <ProfileMenu />
+        </header>
 
-      <RiskPolicyBanner />
+        <RiskPolicyBanner />
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
-        <RouteErrorBoundary>
-          <Suspense fallback={<RouteFallback />}>
-            <Outlet />
-          </Suspense>
-        </RouteErrorBoundary>
-      </main>
+        <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8">
+          <div className="mx-auto w-full max-w-6xl">
+            <RouteErrorBoundary>
+              <Suspense fallback={<RouteFallback />}>
+                <Outlet />
+              </Suspense>
+            </RouteErrorBoundary>
+          </div>
+        </main>
+      </div>
     </div>
-  );
-}
-
-function ShellNavLink({ to, end, children }: { to: string; end?: boolean; children: ReactNode }) {
-  return (
-    <NavLink
-      to={to}
-      end={end}
-      className={({ isActive }) =>
-        cn(
-          // ≥44px touch target (min-h-11) with whitespace-nowrap for the scroll rail.
-          'inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-lg px-3.5 text-sm font-medium transition-colors',
-          isActive
-            ? 'bg-brand-50 text-brand-700 [.theme-dark_&]:bg-brand-500/15 [.theme-dark_&]:text-brand-300'
-            : 'text-[var(--text-2)] hover:bg-[var(--surface-2)] hover:text-[var(--text-1)]',
-        )
-      }
-    >
-      {children}
-    </NavLink>
   );
 }

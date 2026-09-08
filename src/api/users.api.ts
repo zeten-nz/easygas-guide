@@ -46,6 +46,12 @@ export async function fetchUser(id: number): Promise<UserDetail> {
   return data.user;
 }
 
+/** §C own profile — self-scoped (no users.view needed). Returns the caller's UserDetail. */
+export async function fetchOwnProfile(): Promise<UserDetail> {
+  const { data } = await api.get('/users/me');
+  return data.user;
+}
+
 export async function createUser(input: CreateUserInput): Promise<UserDetail> {
   const { data } = await api.post('/users', input);
   return data.user;

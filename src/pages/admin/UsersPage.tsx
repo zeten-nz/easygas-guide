@@ -1,58 +1,67 @@
 import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, KeyRound, Lock, LockOpen, Pencil, Plus, Search, Users } from 'lucide-react';
+import { KeyRound, Lock, LockOpen, MoreHorizontal, Pencil, Plus, Search, UserRound, Users } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Alert } from '../../components/ui/Alert';
 import { Spinner } from '../../components/ui/Spinner';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { Pagination } from '../../components/ui/Pagination';
+import { DropdownMenu, MenuItem } from '../../components/ui/DropdownMenu';
 import { UserFormModal } from './UserFormModal';
 import { ResetPasswordModal } from './ResetPasswordModal';
+import { RoleBadge, StatusBadge } from './user-badges';
 import { useAuth } from '../../features/auth/auth-context';
+import { useTableParams } from '../../lib/useTableParams';
 import * as usersApi from '../../api/users.api';
 import { fetchBranches } from '../../api/branches.api';
 import { getApiError } from '../../api/client';
 import { can } from '../../lib/permissions';
 import { displayPhone } from '../../lib/phone';
-import { ROLE_CODES, ROLE_LABELS, type RoleCode, type UserDetail, type UserStatus } from '../../types/auth';
-import { cn } from '../../lib/utils';
+import { ROLE_CODES, ROLE_LABELS, type RoleCode, type UserDetail } from '../../types/auth';
 
 export function UsersPage() {
   const { user: actor } = useAuth();
   const queryClient = useQueryClient();
+  const { page, pageSize, filters, setPage, setPageSize, setFilter } = useTableParams(
+    ['search', 'role', 'branchId', 'status'],
+    { defaultPageSize: 25 },
+  );
 
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [role, setRole] = useState<RoleCode | ''>('');
-  const [branchId, setBranchId] = useState('');
-  const [status, setStatus] = useState<UserStatus | ''>('');
-  const [page, setPage] = useState(1);
+  // Local, debounced mirror of the URL search so typing does not flood history.
+  const [searchInput, setSearchInput] = useState(filters.search);
+  // Adjust the input when the URL search changes externally (e.g. browser Back) —
+  // the React-recommended "reset state on change during render" pattern.
+  const [prevUrlSearch, setPrevUrlSearch] = useState(filters.search);
+  if (filters.search !== prevUrlSearch) {
+    setPrevUrlSearch(filters.search);
+    setSearchInput(filters.search);
+  }
+  useEffect(() => {
+    if (searchInput === filters.search) return;
+    const t = setTimeout(() => setFilter('search', searchInput.trim(), true), 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput]);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<UserDetail | null>(null);
   const [blockTarget, setBlockTarget] = useState<UserDetail | null>(null);
   const [resetTarget, setResetTarget] = useState<UserDetail | null>(null);
 
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setDebouncedSearch(search.trim());
-      setPage(1);
-    }, 350);
-    return () => clearTimeout(t);
-  }, [search]);
-
   const canFilterBranch = can(actor, 'users.assign_role');
   const branchesQuery = useQuery({ queryKey: ['branches'], queryFn: fetchBranches, enabled: canFilterBranch });
 
   const params: usersApi.ListUsersParams = {
     page,
-    limit: 25,
-    ...(debouncedSearch ? { search: debouncedSearch } : {}),
-    ...(role ? { role } : {}),
-    ...(branchId ? { branchId: Number(branchId) } : {}),
-    ...(status ? { status } : {}),
+    limit: pageSize,
+    ...(filters.search ? { search: filters.search } : {}),
+    ...(filters.role ? { role: filters.role as RoleCode } : {}),
+    ...(filters.branchId ? { branchId: Number(filters.branchId) } : {}),
+    ...(filters.status ? { status: filters.status as 'ACTIVE' | 'BLOCKED' } : {}),
   };
 
   const usersQuery = useQuery({
@@ -61,11 +70,23 @@ export function UsersPage() {
     placeholderData: keepPreviousData,
   });
 
+  const total = usersQuery.data?.total ?? 0;
+  const rows = usersQuery.data?.users ?? [];
+
+  // Recover if this page went empty (e.g. filtering shrank the set) — jump to the
+  // last valid page instead of showing a blank page with rows beyond it.
+  useEffect(() => {
+    if (usersQuery.isPlaceholderData) return;
+    if (total > 0 && rows.length === 0 && page > 1) {
+      setPage(Math.max(1, Math.ceil(total / pageSize)));
+    }
+  }, [usersQuery.isPlaceholderData, total, rows.length, page, pageSize, setPage]);
+
   const blockMutation = useMutation({
     mutationFn: (target: UserDetail) =>
       target.status === 'ACTIVE' ? usersApi.blockUser(target.id) : usersApi.unblockUser(target.id),
     onSuccess: (_data, target) => {
-      toast.success(target.status === 'ACTIVE' ? 'Foydalanuvchi bloklandi' : 'Foydalanuvchi blokdan chiqarildi');
+      toast.success(target.status === 'ACTIVE' ? 'Xodim bloklandi' : 'Xodim blokdan chiqarildi');
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       setBlockTarget(null);
     },
@@ -75,18 +96,15 @@ export function UsersPage() {
     },
   });
 
-  const total = usersQuery.data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / 25));
+  const canManage = can(actor, 'users.update') || can(actor, 'users.reset_password') || can(actor, 'users.block');
 
   return (
-    <div className="mx-auto max-w-4xl">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-[var(--text-1)]">Foydalanuvchilar</h1>
+          <h1 className="text-2xl font-bold text-[var(--text-1)]">Xodimlar</h1>
           <p className="mt-1 text-sm text-[var(--text-2)]">
-            {can(actor, 'users.assign_role')
-              ? 'Barcha foydalanuvchilarni boshqarish'
-              : "O'z filialingiz foydalanuvchilari"}
+            {canFilterBranch ? 'Barcha filiallar xodimlarini boshqaring' : "O'z filialingiz xodimlari"}
           </p>
         </div>
         {can(actor, 'users.create') && (
@@ -97,27 +115,21 @@ export function UsersPage() {
             }}
           >
             <Plus className="size-4" />
-            Yangi foydalanuvchi
+            Yangi xodim
           </Button>
         )}
       </div>
 
-      <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Filters */}
+      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Input
-          placeholder="Ism, familiya yoki telefon..."
+          placeholder="Ism, familiya yoki telefon…"
           leftIcon={<Search className="size-[18px]" />}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
           aria-label="Qidiruv"
         />
-        <Select
-          value={role}
-          onChange={(e) => {
-            setRole(e.target.value as RoleCode | '');
-            setPage(1);
-          }}
-          aria-label="Rol bo'yicha filtr"
-        >
+        <Select value={filters.role} onChange={(e) => setFilter('role', e.target.value)} aria-label="Rol bo'yicha filtr">
           <option value="">Barcha rollar</option>
           {ROLE_CODES.map((code) => (
             <option key={code} value={code}>
@@ -126,14 +138,7 @@ export function UsersPage() {
           ))}
         </Select>
         {canFilterBranch && (
-          <Select
-            value={branchId}
-            onChange={(e) => {
-              setBranchId(e.target.value);
-              setPage(1);
-            }}
-            aria-label="Filial bo'yicha filtr"
-          >
+          <Select value={filters.branchId} onChange={(e) => setFilter('branchId', e.target.value)} aria-label="Filial bo'yicha filtr">
             <option value="">Barcha filiallar</option>
             {(branchesQuery.data ?? []).map((b) => (
               <option key={b.id} value={b.id}>
@@ -142,118 +147,121 @@ export function UsersPage() {
             ))}
           </Select>
         )}
-        <Select
-          value={status}
-          onChange={(e) => {
-            setStatus(e.target.value as UserStatus | '');
-            setPage(1);
-          }}
-          aria-label="Holat bo'yicha filtr"
-        >
+        <Select value={filters.status} onChange={(e) => setFilter('status', e.target.value)} aria-label="Holat bo'yicha filtr">
           <option value="">Barcha holatlar</option>
           <option value="ACTIVE">Faol</option>
           <option value="BLOCKED">Bloklangan</option>
         </Select>
       </div>
 
-      <div className="mt-5 space-y-3">
-        {usersQuery.isLoading && (
-          <div className="flex justify-center py-16">
-            <Spinner className="size-7 text-brand-500" />
+      <div className="relative mt-5 rounded-2xl border border-[var(--border-1)] bg-[var(--surface)]">
+        {usersQuery.isLoading ? (
+          <div className="flex justify-center py-20">
+            <Spinner className="size-7 text-blue-600" />
           </div>
-        )}
-
-        {usersQuery.isError && <Alert tone="error">{getApiError(usersQuery.error).message}</Alert>}
-
-        {usersQuery.data && usersQuery.data.users.length === 0 && (
-          <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[var(--border-1)] py-16 text-[var(--text-2)]">
-            <Users className="size-8" />
-            <p className="text-sm">Foydalanuvchi topilmadi</p>
+        ) : usersQuery.isError ? (
+          <div className="p-4">
+            <Alert tone="error">{getApiError(usersQuery.error).message}</Alert>
           </div>
-        )}
-
-        {usersQuery.data?.users.map((u) => (
-          <div
-            key={u.id}
-            className={cn(
-              'flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--border-1)] bg-[var(--surface)] p-4',
-              u.status === 'BLOCKED' && 'opacity-70',
-            )}
-          >
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="font-semibold text-[var(--text-1)]">
-                  {u.firstName} {u.lastName}
-                  {u.id === actor?.id && <span className="ml-1 text-xs text-[var(--text-2)]">(siz)</span>}
-                </p>
-                <RoleBadge role={u.role} />
-                <StatusBadge status={u.status} />
-              </div>
-              <p className="mt-1 text-sm text-[var(--text-2)]">
-                {displayPhone(u.phone)} · {u.branchName ?? 'Filialsiz'} · {u.region}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {can(actor, 'users.update') && (
-                <Button
-                  variant="secondary"
-                  size="md"
-                  onClick={() => {
-                    setEditTarget(u);
-                    setFormOpen(true);
-                  }}
-                  aria-label={`${u.firstName}ni tahrirlash`}
-                >
-                  <Pencil className="size-4" />
-                  <span className="hidden sm:inline">Tahrirlash</span>
-                </Button>
-              )}
-              {can(actor, 'users.reset_password') && u.id !== actor?.id && (
-                <Button
-                  variant="secondary"
-                  size="md"
-                  onClick={() => setResetTarget(u)}
-                  aria-label={`${u.firstName} uchun vaqtinchalik parol yaratish`}
-                >
-                  <KeyRound className="size-4" />
-                  <span className="hidden sm:inline">Vaqtinchalik parol</span>
-                </Button>
-              )}
-              {can(actor, 'users.block') && u.id !== actor?.id && (
-                <Button
-                  variant={u.status === 'ACTIVE' ? 'danger-outline' : 'secondary'}
-                  size="md"
-                  onClick={() => setBlockTarget(u)}
-                  aria-label={u.status === 'ACTIVE' ? `${u.firstName}ni bloklash` : `${u.firstName}ni blokdan chiqarish`}
-                >
-                  {u.status === 'ACTIVE' ? <Lock className="size-4" /> : <LockOpen className="size-4" />}
-                  <span className="hidden sm:inline">{u.status === 'ACTIVE' ? 'Bloklash' : 'Blokdan chiqarish'}</span>
-                </Button>
-              )}
+        ) : rows.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 px-6 py-20 text-center text-[var(--text-2)]">
+            <Users className="size-8 text-[var(--text-3)]" />
+            <div>
+              <p className="font-medium text-[var(--text-1)]">Xodim topilmadi</p>
+              <p className="mt-1 text-sm">Qidiruv yoki filtrlarni o'zgartirib ko'ring.</p>
             </div>
           </div>
-        ))}
+        ) : (
+          <>
+            {/* Desktop table */}
+            <table className="hidden w-full text-sm sm:table">
+              <thead>
+                <tr className="border-b border-[var(--border-1)] text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-3)]">
+                  <th className="px-4 py-3 font-semibold">Xodim</th>
+                  <th className="px-4 py-3 font-semibold">Rol</th>
+                  <th className="px-4 py-3 font-semibold">Filial</th>
+                  <th className="px-4 py-3 font-semibold">Holat</th>
+                  {canManage && <th className="px-4 py-3 text-right font-semibold">Amallar</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border-1)]">
+                {rows.map((u) => (
+                  <tr key={u.id} className="hover:bg-[var(--surface-2)]/50">
+                    <td className="px-4 py-3">
+                      <Link
+                        to={`/app/admin/users/${u.id}`}
+                        className="font-semibold text-[var(--text-1)] hover:text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
+                      >
+                        {u.firstName} {u.lastName}
+                      </Link>
+                      <p className="mt-0.5 text-[var(--text-2)]">{displayPhone(u.phone)}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <RoleBadge role={u.role} />
+                    </td>
+                    <td className="px-4 py-3 text-[var(--text-2)]">{u.branchName ?? 'Filialsiz'}</td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={u.status} />
+                    </td>
+                    {canManage && (
+                      <td className="px-4 py-3 text-right">
+                        <RowActions
+                          u={u}
+                          actorId={actor?.id}
+                          onEdit={() => {
+                            setEditTarget(u);
+                            setFormOpen(true);
+                          }}
+                          onReset={() => setResetTarget(u)}
+                          onBlock={() => setBlockTarget(u)}
+                        />
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Mobile cards */}
+            <ul className="divide-y divide-[var(--border-1)] sm:hidden">
+              {rows.map((u) => (
+                <li key={u.id} className="flex items-start justify-between gap-3 p-4">
+                  <div className="min-w-0">
+                    <Link
+                      to={`/app/admin/users/${u.id}`}
+                      className="font-semibold text-[var(--text-1)] hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
+                    >
+                      {u.firstName} {u.lastName}
+                    </Link>
+                    <p className="mt-0.5 text-sm text-[var(--text-2)]">{displayPhone(u.phone)}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <RoleBadge role={u.role} />
+                      <StatusBadge status={u.status} />
+                      <span className="text-xs text-[var(--text-3)]">{u.branchName ?? 'Filialsiz'}</span>
+                    </div>
+                  </div>
+                  {canManage && (
+                    <RowActions
+                      u={u}
+                      actorId={actor?.id}
+                      onEdit={() => {
+                        setEditTarget(u);
+                        setFormOpen(true);
+                      }}
+                      onReset={() => setResetTarget(u)}
+                      onBlock={() => setBlockTarget(u)}
+                    />
+                  )}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </div>
 
-      {total > 25 && (
-        <div className="mt-5 flex items-center justify-between">
-          <p className="text-sm text-[var(--text-2)]">
-            Jami {total} ta · {page}/{totalPages}-sahifa
-          </p>
-          <div className="flex gap-2">
-            <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label="Oldingi sahifa">
-              <ChevronLeft className="size-4" />
-            </Button>
-            <Button
-              variant="secondary"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
-              aria-label="Keyingi sahifa"
-            >
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
+      {total > 0 && (
+        <div className="mt-4">
+          <Pagination page={page} pageSize={pageSize} total={total} noun="xodim" onPageChange={setPage} onPageSizeChange={setPageSize} />
         </div>
       )}
 
@@ -272,7 +280,7 @@ export function UsersPage() {
 
       <ConfirmDialog
         open={!!blockTarget}
-        title={blockTarget?.status === 'ACTIVE' ? 'Foydalanuvchini bloklash' : 'Blokdan chiqarish'}
+        title={blockTarget?.status === 'ACTIVE' ? 'Xodimni bloklash' : 'Blokdan chiqarish'}
         confirmLabel={blockTarget?.status === 'ACTIVE' ? 'Bloklash' : 'Blokdan chiqarish'}
         danger={blockTarget?.status === 'ACTIVE'}
         loading={blockMutation.isPending}
@@ -300,21 +308,83 @@ export function UsersPage() {
   );
 }
 
-function RoleBadge({ role }: { role: RoleCode }) {
-  const colors: Record<RoleCode, string> = {
-    USTA: 'bg-sky-500/15 text-sky-700',
-    MASTER: 'bg-violet-500/15 text-violet-700',
-    RAHBAR: 'bg-amber-500/15 text-amber-700',
-    SIFAT: 'bg-emerald-500/15 text-emerald-700',
-    ADMIN: 'bg-brand-500/15 text-brand-700',
-  };
-  return <span className={cn('rounded-full px-2.5 py-0.5 text-xs font-semibold', colors[role])}>{ROLE_LABELS[role]}</span>;
-}
-
-function StatusBadge({ status }: { status: UserStatus }) {
-  return status === 'ACTIVE' ? (
-    <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">Faol</span>
-  ) : (
-    <span className="rounded-full bg-ink-500/15 px-2.5 py-0.5 text-xs font-semibold text-ink-500">Bloklangan</span>
+/** Per-row actions in an accessible menu — keeps the row dense and the name link clean. */
+function RowActions({
+  u,
+  actorId,
+  onEdit,
+  onReset,
+  onBlock,
+}: {
+  u: UserDetail;
+  actorId?: number;
+  onEdit: () => void;
+  onReset: () => void;
+  onBlock: () => void;
+}) {
+  const { user: actor } = useAuth();
+  const navigate = useNavigate();
+  const isSelf = u.id === actorId;
+  return (
+    <DropdownMenu
+      align="end"
+      button={
+        <button
+          type="button"
+          aria-label={`${u.firstName} ${u.lastName} — amallar`}
+          className="inline-flex size-9 items-center justify-center rounded-lg text-[var(--text-2)] hover:bg-[var(--surface-2)] hover:text-[var(--text-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
+        >
+          <MoreHorizontal className="size-5" />
+        </button>
+      }
+    >
+      {(close) => (
+        <>
+          <MenuItem
+            icon={<UserRound className="size-[18px]" />}
+            onClick={() => {
+              close();
+              navigate(`/app/admin/users/${u.id}`);
+            }}
+          >
+            Profilni ko'rish
+          </MenuItem>
+          {can(actor, 'users.update') && (
+            <MenuItem
+              icon={<Pencil className="size-[18px]" />}
+              onClick={() => {
+                close();
+                onEdit();
+              }}
+            >
+              Tahrirlash
+            </MenuItem>
+          )}
+          {can(actor, 'users.reset_password') && !isSelf && (
+            <MenuItem
+              icon={<KeyRound className="size-[18px]" />}
+              onClick={() => {
+                close();
+                onReset();
+              }}
+            >
+              Vaqtinchalik parol
+            </MenuItem>
+          )}
+          {can(actor, 'users.block') && !isSelf && (
+            <MenuItem
+              icon={u.status === 'ACTIVE' ? <Lock className="size-[18px]" /> : <LockOpen className="size-[18px]" />}
+              danger={u.status === 'ACTIVE'}
+              onClick={() => {
+                close();
+                onBlock();
+              }}
+            >
+              {u.status === 'ACTIVE' ? 'Bloklash' : 'Blokdan chiqarish'}
+            </MenuItem>
+          )}
+        </>
+      )}
+    </DropdownMenu>
   );
 }

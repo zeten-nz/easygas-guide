@@ -30,7 +30,7 @@ export function ConfirmDialog({
         <Button variant="ghost" onClick={onCancel} disabled={loading}>
           Bekor qilish
         </Button>
-        <Button variant={danger ? 'danger-outline' : 'primary'} onClick={onConfirm} loading={loading}>
+        <Button variant={danger ? 'danger' : 'primary'} onClick={onConfirm} loading={loading}>
           {confirmLabel}
         </Button>
       </div>
