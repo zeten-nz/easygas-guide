@@ -41,7 +41,9 @@ export type Permission =
   | 'risks.override'
   | 'risk.matrix.approve'
   | 'jobs.assign'
-  | 'gps.override';
+  | 'gps.override'
+  | 'catalog.view'
+  | 'catalog.manage';
 
 export type UserStatus = 'ACTIVE' | 'BLOCKED';
 

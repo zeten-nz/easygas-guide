@@ -37,6 +37,10 @@ const JobDetailPage = lazy(() => import('../pages/jobs/JobDetailPage').then((m) 
 const RiskPolicyPage = lazy(() => import('../pages/admin/RiskPolicyPage').then((m) => ({ default: m.RiskPolicyPage })));
 const TemplatesPage = lazy(() => import('../pages/admin/templates/TemplatesPage').then((m) => ({ default: m.TemplatesPage })));
 const TemplateDetailPage = lazy(() => import('../pages/admin/templates/TemplateDetailPage').then((m) => ({ default: m.TemplateDetailPage })));
+const PriceBasePage = lazy(() => import('../pages/catalog/PriceBasePage').then((m) => ({ default: m.PriceBasePage })));
+const ProductDetailPage = lazy(() => import('../pages/catalog/ProductDetailPage').then((m) => ({ default: m.ProductDetailPage })));
+const ServiceDetailPage = lazy(() => import('../pages/catalog/ServiceDetailPage').then((m) => ({ default: m.ServiceDetailPage })));
+const ReferenceDataPage = lazy(() => import('../pages/reference/ReferenceDataPage').then((m) => ({ default: m.ReferenceDataPage })));
 
 export const router = createBrowserRouter([
   {
@@ -108,6 +112,20 @@ export const router = createBrowserRouter([
             children: [
               { path: 'admin/templates', element: <TemplatesPage /> },
               { path: 'admin/templates/:id', element: <TemplateDetailPage /> },
+            ],
+          },
+          // Phase 11B — price base (products/services) + reference data. View is
+          // catalog.view (ADMIN/RAHBAR/SIFAT); the pages hide manage actions unless
+          // the server-provided catalog.manage permission is present.
+          {
+            element: <PermissionRoute permission="catalog.view" />,
+            children: [
+              { path: 'catalog', element: <Navigate to="/app/catalog/products" replace /> },
+              { path: 'catalog/products', element: <PriceBasePage /> },
+              { path: 'catalog/services', element: <PriceBasePage /> },
+              { path: 'catalog/products/:id', element: <ProductDetailPage /> },
+              { path: 'catalog/services/:id', element: <ServiceDetailPage /> },
+              { path: 'reference', element: <ReferenceDataPage /> },
             ],
           },
           // Unknown /app/* path → branded 404 (not a silent redirect).
