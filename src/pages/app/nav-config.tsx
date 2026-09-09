@@ -1,6 +1,7 @@
 import {
   Building2,
   Car,
+  CheckCircle2,
   ClipboardList,
   Contact,
   Home,
@@ -42,6 +43,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: '/app/my-jobs', label: 'Mening ishlarim', icon: Wrench, permission: 'checklist.execute' },
       { to: '/app/jobs', label: 'Ishlar', icon: ListChecks, permission: 'jobs.view' },
+      { to: '/app/jobs?status=COMPLETED', label: 'Tugallangan ishlar', icon: CheckCircle2, permission: 'jobs.view' },
     ],
   },
   {

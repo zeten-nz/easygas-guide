@@ -22,7 +22,7 @@ export function JobsPage() {
   const { user: actor } = useAuth();
   const navigate = useNavigate();
   const { page, pageSize, filters, setPage, setPageSize, setFilter } = useTableParams(
-    ['search', 'status', 'branchId'],
+    ['search', 'status', 'branchId', 'dateFrom', 'dateTo'],
     { defaultPageSize: 25 },
   );
 
@@ -51,6 +51,8 @@ export function JobsPage() {
     ...(filters.search ? { search: filters.search } : {}),
     ...(filters.status ? { status: filters.status as JobStatus } : {}),
     ...(filters.branchId ? { branchId: Number(filters.branchId) } : {}),
+    ...(filters.dateFrom ? { dateFrom: filters.dateFrom } : {}),
+    ...(filters.dateTo ? { dateTo: filters.dateTo } : {}),
   };
 
   const jobsQuery = useQuery({
@@ -110,6 +112,8 @@ export function JobsPage() {
             ))}
           </Select>
         )}
+        <Input type="date" value={filters.dateFrom} onChange={(e) => setFilter('dateFrom', e.target.value)} aria-label="Sanadan (yaratilgan)" label="Sanadan" />
+        <Input type="date" value={filters.dateTo} onChange={(e) => setFilter('dateTo', e.target.value)} aria-label="Sanagacha (yaratilgan)" label="Sanagacha" />
       </div>
 
       <div className="mt-5 space-y-3">

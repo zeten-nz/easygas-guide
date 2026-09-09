@@ -21,6 +21,7 @@ import { InstallationCard } from './InstallationCard';
 import { CompletionSection } from './CompletionSection';
 import { AssignmentPanel } from './AssignmentPanel';
 import { RiskPanel } from './RiskPanel';
+import { JobEvidenceGallery } from './JobEvidenceGallery';
 import { StartJobModal } from './StartJobModal';
 import { useAuth } from '../../features/auth/auth-context';
 import * as jobsApi from '../../api/jobs.api';
@@ -207,6 +208,14 @@ export function JobDetailPage() {
       <div className="mt-6">
         <CompletionSection job={job} />
       </div>
+
+      {/* Phase 11C — photo evidence (Fotolar). Shown once work has begun; the
+          gallery itself renders an honest empty state when there are no photos. */}
+      {job.status !== 'DRAFT' && (
+        <div className="mt-6">
+          <JobEvidenceGallery jobId={job.id} />
+        </div>
+      )}
 
       <StartJobModal
         jobId={job.id}

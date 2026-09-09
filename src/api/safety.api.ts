@@ -116,15 +116,57 @@ export async function getCompletionSnapshot(jobId: number, cycle?: number): Prom
 }
 
 // ---- Risk policy (matrix governance) ----
+export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type RiskSource = 'MANUAL' | 'STOP_REJECTED' | 'MEASUREMENT_OUT_OF_RANGE' | 'CHECKLIST_FLAG';
+
+export interface MatrixDefinition {
+  algorithm: string;
+  allowedSeverity: number[];
+  allowedLikelihood: number[];
+  thresholds: { min: number; level: RiskLevel }[];
+  blockingLevels: RiskLevel[];
+  sourceOverrides?: Partial<Record<RiskSource, RiskLevel>>;
+  severity4MinLevel?: RiskLevel;
+}
+
 export interface MatrixVersion {
   version: string;
   status: 'DRAFT' | 'ACTIVE' | 'RETIRED';
   approvedBy: number | null;
+  approvedByName: string | null;
   approvedAt: string | null;
   rationale: string | null;
   createdAt: string;
-  definition: { thresholds: { min: number; level: string }[]; blockingLevels: string[]; [k: string]: unknown };
+  supersededBy: number | null;
+  definition: MatrixDefinition;
 }
+
+export interface MatrixCell {
+  severity: number;
+  likelihood: number;
+  score: number;
+  level: RiskLevel;
+  blocking: boolean;
+}
+
+export interface MatrixVersionDetail extends MatrixVersion {
+  isActive: boolean;
+  cells: MatrixCell[];
+  blockedOperations: string[];
+}
+
+export interface PreviewResult {
+  version: string;
+  status: string;
+  severity: number;
+  likelihood: number;
+  source: RiskSource;
+  score: number;
+  level: RiskLevel;
+  blocking: boolean;
+  example: true;
+}
+
 export async function getRiskPolicyState(): Promise<{ active: boolean; version: string | null }> {
   const { data } = await api.get('/risk-policy');
   return data;
@@ -132,6 +174,14 @@ export async function getRiskPolicyState(): Promise<{ active: boolean; version: 
 export async function listMatrixVersions(): Promise<{ versions: MatrixVersion[] }> {
   const { data } = await api.get('/risk-policy/versions');
   return data;
+}
+export async function getMatrixVersionDetail(version: string): Promise<MatrixVersionDetail> {
+  const { data } = await api.get(`/risk-policy/versions/${encodeURIComponent(version)}`);
+  return data.version;
+}
+export async function previewClassification(version: string, input: { severity: number; likelihood: number; source?: RiskSource }): Promise<PreviewResult> {
+  const { data } = await api.get(`/risk-policy/versions/${encodeURIComponent(version)}/preview`, { params: input });
+  return data.preview;
 }
 export async function activateMatrix(version: string, rationale: string): Promise<void> {
   await api.post(`/risk-policy/${encodeURIComponent(version)}/activate`, { rationale });

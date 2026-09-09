@@ -13,6 +13,9 @@ export interface ListJobsParams {
   search?: string;
   status?: JobStatus;
   branchId?: number;
+  technicianId?: number;
+  dateFrom?: string;
+  dateTo?: string;
   page?: number;
   limit?: number;
 }
@@ -112,6 +115,48 @@ export async function uploadStepPhoto(jobId: number, stepId: number, file: File)
 
 export function stepPhotoUrl(jobId: number, stepId: number, photoId: number): string {
   return `${api.defaults.baseURL}/jobs/${jobId}/checklist/steps/${stepId}/photos/${photoId}/file`;
+}
+
+// --- Phase 11C: job-level photo evidence (completed-job review) ---
+
+export type EvidenceRole = 'COMPLETED_CYCLE' | 'CURRENT' | 'SUPERSEDED_ATTEMPT' | 'PENDING' | 'FAILED' | 'UNVERIFIED';
+export type EvidenceStatus = 'READY' | 'PENDING' | 'UNVERIFIED' | 'FAILED';
+
+export interface JobPhoto {
+  id: number;
+  jobStepId: number;
+  stepId: number;
+  stepName: string;
+  stepOrder: number;
+  isStop: boolean;
+  requiredPhotos: number;
+  attempt: number;
+  status: EvidenceStatus;
+  failureReason: string | null;
+  uploadedById: number;
+  uploadedByName: string;
+  createdAt: string;
+  readyAt: string | null;
+  sizeBytes: number;
+  mimeType: string;
+  cycle: number | null;
+  snapshotEvidence: boolean;
+  role: EvidenceRole;
+  downloadable: boolean;
+}
+
+export interface JobPhotosResult {
+  job: { id: number; status: JobStatus; cycle: number; assignedTechnicianId: number | null; assignmentStatus: string | null };
+  cycles: { cycle: number; provenance: string; createdAt: string }[];
+  photos: JobPhoto[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export async function fetchJobPhotos(jobId: number, params: { cycle?: number; jobStepId?: number; page?: number; limit?: number } = {}): Promise<JobPhotosResult> {
+  const { data } = await api.get(`/jobs/${jobId}/photos`, { params });
+  return data;
 }
 
 // --- Completion flow (§22–23) ---
