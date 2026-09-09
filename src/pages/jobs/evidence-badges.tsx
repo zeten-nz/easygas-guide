@@ -21,8 +21,8 @@ export function EvidenceMeta({ photo, className }: { photo: JobPhoto; className?
     <span key="t">{fmtEvidenceTime(photo.readyAt ?? photo.createdAt)}</span>,
     <span key="a">Urinish {photo.attempt}</span>,
     // A photo's cycle is known ONLY when it was frozen into a completed cycle's
-    // snapshot; otherwise we say so rather than inventing one.
-    <span key="c">{photo.cycle != null ? `${photo.cycle}-tsikl` : 'Tsikl: joriy/aniqlanmagan'}</span>,
+    // snapshot; a photo can span several cycles; otherwise we say so honestly.
+    <span key="c">{photo.cycles.length > 1 ? `${photo.cycles.join(', ')}-tsikllar` : photo.cycle != null ? `${photo.cycle}-tsikl` : 'Tsikl: joriy/aniqlanmagan'}</span>,
   ];
   if (photo.status === 'FAILED' && photo.failureReason) parts.push(<span key="f">Sabab: {photo.failureReason}</span>);
   return (

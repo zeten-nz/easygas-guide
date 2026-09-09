@@ -10,7 +10,7 @@ vi.mock('../../api/jobs.api', async () => {
 import { PhotoViewer } from './PhotoViewer';
 
 function photo(id: number, name: string): JobPhoto {
-  return { id, jobStepId: 10, stepId: 100, stepName: name, stepOrder: 1, isStop: false, requiredPhotos: 1, attempt: 1, status: 'READY', failureReason: null, uploadedById: 5, uploadedByName: 'Ali Usta', createdAt: '2026-01-01T09:00:00Z', readyAt: '2026-01-01T09:00:05Z', sizeBytes: 100, mimeType: 'image/png', cycle: 1, snapshotEvidence: true, role: 'COMPLETED_CYCLE', downloadable: true };
+  return { id, jobStepId: 10, stepId: 100, stepName: name, stepOrder: 1, isStop: false, requiredPhotos: 1, attempt: 1, status: 'READY', failureReason: null, uploadedById: 5, uploadedByName: 'Ali Usta', createdAt: '2026-01-01T09:00:00Z', readyAt: '2026-01-01T09:00:05Z', sizeBytes: 100, mimeType: 'image/png', cycle: 1, cycles: [1], snapshotEvidence: true, role: 'COMPLETED_CYCLE', downloadable: true };
 }
 const photos = [photo(1, 'Birinchi'), photo(2, 'Ikkinchi')];
 

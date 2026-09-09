@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, History, ShieldQuestion, XCircle, type LucideIcon } from 'lucide-react';
+import { CheckCircle2, Clock, History, HelpCircle, ShieldQuestion, XCircle, type LucideIcon } from 'lucide-react';
 import type { EvidenceRole, JobPhoto } from '../../api/jobs.api';
 
 /**
@@ -12,6 +12,7 @@ export const ROLE_META: Record<EvidenceRole, { label: string; Icon: LucideIcon; 
   COMPLETED_CYCLE: { label: 'Yakunlangan tsikl', Icon: CheckCircle2, className: 'bg-[var(--success-bg)] text-[var(--success-fg)]' },
   CURRENT: { label: 'Joriy', Icon: Clock, className: 'bg-blue-500/10 text-blue-700 dark:text-blue-300' },
   SUPERSEDED_ATTEMPT: { label: 'Eskirgan urinish', Icon: History, className: 'bg-[var(--surface-2)] text-[var(--text-2)]' },
+  HISTORICAL_UNCLASSIFIED: { label: 'Tarixiy (aniqlanmagan)', Icon: HelpCircle, className: 'bg-[var(--surface-2)] text-[var(--text-2)]' },
   PENDING: { label: 'Yuklanmoqda', Icon: Clock, className: 'bg-[var(--warning-bg)] text-[var(--warning-fg)]' },
   UNVERIFIED: { label: 'Tekshirilmagan (eski)', Icon: ShieldQuestion, className: 'bg-[var(--warning-bg)] text-[var(--warning-fg)]' },
   FAILED: { label: 'Muvaffaqiyatsiz', Icon: XCircle, className: 'bg-[var(--danger-bg)] text-[var(--danger-fg)]' },

@@ -15,7 +15,7 @@ function photo(over: Partial<JobPhoto>): JobPhoto {
     id: 1, jobStepId: 10, stepId: 100, stepName: 'Foto bosqich', stepOrder: 1, isStop: false, requiredPhotos: 1,
     attempt: 1, status: 'READY', failureReason: null, uploadedById: 5, uploadedByName: 'Ali Usta',
     createdAt: '2026-01-01T09:00:00Z', readyAt: '2026-01-01T09:00:05Z', sizeBytes: 1234, mimeType: 'image/png',
-    cycle: 1, snapshotEvidence: true, role: 'COMPLETED_CYCLE', downloadable: true, ...over,
+    cycle: 1, cycles: [1], snapshotEvidence: true, role: 'COMPLETED_CYCLE', downloadable: true, ...over,
   };
 }
 function result(photos: JobPhoto[]): JobPhotosResult {
@@ -41,7 +41,7 @@ test('shows a loading state, then resolves', async () => {
 test('labels roles truthfully and only makes READY evidence clickable', async () => {
   mockFetch.mockResolvedValue(result([
     photo({ id: 1, role: 'COMPLETED_CYCLE', status: 'READY', downloadable: true }),
-    photo({ id: 2, role: 'UNVERIFIED', status: 'UNVERIFIED', downloadable: false, cycle: null, snapshotEvidence: false }),
+    photo({ id: 2, role: 'UNVERIFIED', status: 'UNVERIFIED', downloadable: false, cycle: null, cycles: [], snapshotEvidence: false }),
   ]));
   renderWithProviders(<JobEvidenceGallery jobId={7} />);
   // Truthful role labels (words, not colour alone).

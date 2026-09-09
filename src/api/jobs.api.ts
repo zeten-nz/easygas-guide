@@ -119,7 +119,7 @@ export function stepPhotoUrl(jobId: number, stepId: number, photoId: number): st
 
 // --- Phase 11C: job-level photo evidence (completed-job review) ---
 
-export type EvidenceRole = 'COMPLETED_CYCLE' | 'CURRENT' | 'SUPERSEDED_ATTEMPT' | 'PENDING' | 'FAILED' | 'UNVERIFIED';
+export type EvidenceRole = 'COMPLETED_CYCLE' | 'CURRENT' | 'SUPERSEDED_ATTEMPT' | 'HISTORICAL_UNCLASSIFIED' | 'PENDING' | 'FAILED' | 'UNVERIFIED';
 export type EvidenceStatus = 'READY' | 'PENDING' | 'UNVERIFIED' | 'FAILED';
 
 export interface JobPhoto {
@@ -140,6 +140,7 @@ export interface JobPhoto {
   sizeBytes: number;
   mimeType: string;
   cycle: number | null;
+  cycles: number[];
   snapshotEvidence: boolean;
   role: EvidenceRole;
   downloadable: boolean;
@@ -156,6 +157,15 @@ export interface JobPhotosResult {
 
 export async function fetchJobPhotos(jobId: number, params: { cycle?: number; jobStepId?: number; page?: number; limit?: number } = {}): Promise<JobPhotosResult> {
   const { data } = await api.get(`/jobs/${jobId}/photos`, { params });
+  return data;
+}
+
+// --- Phase 11C: responsible technicians for the completed-job list filter ---
+
+export interface TechnicianOption { id: number; name: string }
+
+export async function fetchTechnicians(params: { search?: string; id?: number; limit?: number } = {}): Promise<{ items: TechnicianOption[]; total: number }> {
+  const { data } = await api.get('/jobs/technicians', { params });
   return data;
 }
 

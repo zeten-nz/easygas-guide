@@ -63,6 +63,42 @@ test.describe('11C evidence + policy', () => {
     clean();
   });
 
+  test('responsible-technician filter narrows the list (two technicians; selected name persists after reload)', async ({ page }) => {
+    const proj = test.info().project.name === 'chromium' ? 'cr' : 'mo';
+    // A MASTER-owned job → a second responsible technician distinct from the seeded USTA.
+    await loginAs(page, USERS.MASTER);
+    const mt = await csrfToken(page);
+    const masterId = (await (await page.request.get('/api/v1/auth/me')).json()).user.id as number; // MASTER's own id (reliable)
+    const cust = await page.request.post('/api/v1/customers', { headers: { 'x-csrf-token': mt }, data: { name: `E2E Tech Mijoz ${proj}`, phone: `99 000 7${proj === 'cr' ? '1' : '2'} 77` } });
+    expect(cust.ok(), `customer create ${cust.status()}`).toBeTruthy();
+    const custId = (await cust.json()).customer.id;
+    const veh = await page.request.post('/api/v1/vehicles', { headers: { 'x-csrf-token': mt }, data: { customerId: custId, plateNumber: `E2E-TECH-${proj}`, make: 'Chevrolet', model: 'Spark' } });
+    expect(veh.ok(), `vehicle create ${veh.status()}`).toBeTruthy();
+    const job = await page.request.post('/api/v1/jobs', { headers: { 'x-csrf-token': mt }, data: { customerId: custId, vehicleId: (await veh.json()).vehicle.id } });
+    expect(job.ok(), `job create ${job.status()}`).toBeTruthy();
+    await page.context().clearCookies(); // drop the MASTER session before the reviewer logs in
+
+    const clean = guardPage(page);
+    await loginAs(page, USERS.SIFAT);
+    const masterName = (await (await page.request.get(`/api/v1/jobs/technicians?id=${masterId}`)).json()).items[0].name as string;
+
+    // URL-driven filter by the master technician: the selected name resolves after load.
+    await page.goto(`/app/jobs?technicianId=${masterId}`);
+    const filterBtn = page.getByRole('button', { name: /Mas'ul texnik bo'yicha filtr/ });
+    await expect(filterBtn).toContainText(masterName);
+    // Plates created through the API are normalised (dashes stripped + upper-cased):
+    // 'E2E-TECH-cr' is stored/displayed as 'E2ETECHCR'.
+    await expect(page.getByRole('button', { name: new RegExp(`E2ETECH${proj}`, 'i') })).toBeVisible();
+    await expect(page.getByRole('button', { name: new RegExp(`E2E-EVI-${proj}`, 'i') })).toHaveCount(0); // a USTA-only job is filtered out
+
+    // Switch via the combobox to the seeded USTA and confirm its jobs reappear.
+    await filterBtn.click();
+    await page.getByLabel('Texnik qidirish').fill('Demo');
+    await page.getByRole('option', { name: /Usta/i }).first().click();
+    await expect(page.getByRole('button', { name: new RegExp(`E2E-EVI-${proj}`, 'i') }).first()).toBeVisible();
+    clean();
+  });
+
   test('reopened job distinguishes previous-cycle completed evidence from current', async ({ page }) => {
     const clean = guardPage(page);
     await loginAs(page, USERS.SIFAT);

@@ -8,10 +8,13 @@ was reintroduced.
 ## A. Completed-job evidence entry point
 
 - **Jobs list** (`/app/jobs`, `JobsPage`) gained **date-range** filters (`dateFrom`/
-  `dateTo`, URL-synced) beside the existing search / status / branch filters. A
-  "Tugallangan ishlar" nav shortcut deep-links to `/app/jobs?status=COMPLETED`. The
-  responsible-technician filter is supported by the server (`technicianId`, tested)
-  and is a documented server capability; the list UI drives status/branch/date/search.
+  `dateTo`) and a **responsible-technician** filter (`TechnicianFilter`) — a bounded,
+  server-backed, debounced searchable combobox over `GET /jobs/technicians` (never a
+  fetch-all), resolving the selected name by id so it shows after reload. All filters
+  are URL-synced (`useTableParams`): branch scope, pagination reset and Back
+  navigation are preserved. A "Tugallangan ishlar" nav shortcut deep-links to
+  `/app/jobs?status=COMPLETED`. The technician filter targets the RESPONSIBLE
+  technician (`jobs.assigned_technician_id`), never the photo uploader / step performer.
 - All filters live in the URL (`useTableParams`), so opening a job and pressing
   browser **Back restores the filtered page**.
 
@@ -25,9 +28,13 @@ current job:
 - Grouped by **completed cycle** (authoritative snapshot history) then step, with a
   separate "Joriy va boshqa dalillar" group for current / superseded evidence.
 - Each tile shows the step, a **role badge** (Yakunlangan tsikl / Joriy / Eskirgan
-  urinish / Tekshirilmagan (eski) / Muvaffaqiyatsiz), the uploader (distinct from the
-  assigned technician), timestamp, attempt, and cycle — or **"Ma'lumot mavjud emas"**
-  / "Tsikl: joriy/aniqlanmagan" when a value is genuinely unknown.
+  urinish / **Tarixiy (aniqlanmagan)** / Tekshirilmagan (eski) / Muvaffaqiyatsiz), the
+  **uploader** (labelled "Yuklagan" — deliberately not the step performer or assigned
+  technician), timestamp, attempt, and cycle(s). A photo spanning several completed
+  cycles shows all of them ("1, 2-tsikllar"); when a value is genuinely unknown it says
+  **"Ma'lumot mavjud emas"** / "Tsikl: joriy/aniqlanmagan" rather than inventing one.
+  All role/provenance is server-computed (see server `PHASE-11C.md`); the client never
+  infers a cycle or labels unmatched evidence "current".
 - Only **READY** photos are openable; unverified/pending/failed rows show their state
   and are not clickable (colour is always paired with an icon + words).
 - Thumbnails reserve their box (`aspect-square`), **lazy-load**, and paginate
@@ -105,7 +112,7 @@ redesigned:
 ## Remaining limitations
 
 - No image thumbnails/derivatives (bounded/lazy originals, stated above).
-- Responsible-technician list filter is server-side only (no technician-picker UI on
-  the list yet).
+- The technician filter lists technicians who have jobs in scope; a now-inactive
+  technician with historical jobs is still offered (source `jobs.assigned_technician_id`).
 - Cross-repo: needs the Phase 11C server endpoints — **merge server first, then client**.
   Base refs: client `de0dc1f`, server `4df8c91`.
