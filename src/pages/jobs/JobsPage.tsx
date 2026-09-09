@@ -9,6 +9,7 @@ import { Alert } from '../../components/ui/Alert';
 import { Spinner } from '../../components/ui/Spinner';
 import { Pagination } from '../../components/ui/Pagination';
 import { JobStatusBadge } from './JobStatusBadge';
+import { TechnicianFilter } from './TechnicianFilter';
 import { useAuth } from '../../features/auth/auth-context';
 import { useTableParams } from '../../lib/useTableParams';
 import * as jobsApi from '../../api/jobs.api';
@@ -22,7 +23,7 @@ export function JobsPage() {
   const { user: actor } = useAuth();
   const navigate = useNavigate();
   const { page, pageSize, filters, setPage, setPageSize, setFilter } = useTableParams(
-    ['search', 'status', 'branchId'],
+    ['search', 'status', 'branchId', 'technicianId', 'dateFrom', 'dateTo'],
     { defaultPageSize: 25 },
   );
 
@@ -51,6 +52,9 @@ export function JobsPage() {
     ...(filters.search ? { search: filters.search } : {}),
     ...(filters.status ? { status: filters.status as JobStatus } : {}),
     ...(filters.branchId ? { branchId: Number(filters.branchId) } : {}),
+    ...(filters.technicianId ? { technicianId: Number(filters.technicianId) } : {}),
+    ...(filters.dateFrom ? { dateFrom: filters.dateFrom } : {}),
+    ...(filters.dateTo ? { dateTo: filters.dateTo } : {}),
   };
 
   const jobsQuery = useQuery({
@@ -110,6 +114,12 @@ export function JobsPage() {
             ))}
           </Select>
         )}
+        <TechnicianFilter
+          value={filters.technicianId ? Number(filters.technicianId) : null}
+          onChange={(id) => setFilter('technicianId', id != null ? String(id) : '')}
+        />
+        <Input type="date" value={filters.dateFrom} onChange={(e) => setFilter('dateFrom', e.target.value)} aria-label="Sanadan (yaratilgan)" label="Sanadan" />
+        <Input type="date" value={filters.dateTo} onChange={(e) => setFilter('dateTo', e.target.value)} aria-label="Sanagacha (yaratilgan)" label="Sanagacha" />
       </div>
 
       <div className="mt-5 space-y-3">
