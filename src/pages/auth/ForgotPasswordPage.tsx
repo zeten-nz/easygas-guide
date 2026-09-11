@@ -20,7 +20,7 @@ export function ForgotPasswordPage() {
   const backToLogin = (
     <Link
       to="/login"
-      className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-400 transition-colors hover:text-brand-300"
+      className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-600 transition-colors hover:text-brand-700"
     >
       <ArrowLeft className="size-4" />
       {t('forgot.backToLogin')}
@@ -30,8 +30,8 @@ export function ForgotPasswordPage() {
   return (
     <AuthLayout footer={backToLogin}>
       <div className="flex flex-col items-center text-center">
-        <span className="flex size-14 items-center justify-center rounded-full bg-brand-500/15">
-          <ShieldCheck className="size-8 text-brand-400" />
+        <span className="flex size-14 items-center justify-center rounded-full bg-brand-50">
+          <ShieldCheck className="size-8 text-brand-600" />
         </span>
         <h1 className="mt-4 text-xl font-bold text-[var(--text-1)]">{t('forgot.title')}</h1>
       </div>
@@ -42,9 +42,9 @@ export function ForgotPasswordPage() {
       </p>
 
       {/* Explicit safety instruction — the employee must never send their password. */}
-      <div className="mt-4 flex items-start gap-2.5 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-left">
-        <Info className="mt-0.5 size-[18px] shrink-0 text-amber-400" />
-        <p className="text-[13px] font-medium leading-relaxed text-amber-200">{t('forgot.warning')}</p>
+      <div className="mt-4 flex items-start gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 text-left">
+        <Info className="mt-0.5 size-[18px] shrink-0 text-amber-600" />
+        <p className="text-[13px] font-medium leading-relaxed text-amber-900">{t('forgot.warning')}</p>
       </div>
 
       <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="mt-6 block">

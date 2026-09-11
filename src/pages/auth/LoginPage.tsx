@@ -15,6 +15,7 @@ import { getApiError } from '../../api/client';
 import { formatNationalPhone, toE164 } from '../../lib/phone';
 import { useT } from '../../i18n/i18n';
 import { localizeApiError } from '../../i18n/api-errors';
+import { fieldError } from '../../i18n/form';
 
 interface FormValues {
   phone: string;
@@ -27,7 +28,9 @@ export function LoginPage() {
   const location = useLocation();
   const { setUser } = useAuth();
   const t = useT();
-  const [serverError, setServerError] = useState<string | null>(null);
+  // Store the STABLE error code (not a translated string) so a visible error
+  // re-translates when the language changes.
+  const [errorCode, setErrorCode] = useState<string | null>(null);
 
   const {
     register,
@@ -50,11 +53,11 @@ export function LoginPage() {
       const from = (location.state as { from?: string } | null)?.from;
       navigate(from ?? '/app', { replace: true });
     },
-    onError: (err) => setServerError(localizeApiError(getApiError(err).code, t)),
+    onError: (err) => setErrorCode(getApiError(err).code ?? 'UNKNOWN'),
   });
 
   const onSubmit = (values: FormValues) => {
-    setServerError(null);
+    setErrorCode(null);
     const phone = toE164(values.phone);
     if (!phone) return;
     loginMutation.mutate({ phone, password: values.password, rememberMe: values.rememberMe });
@@ -65,7 +68,7 @@ export function LoginPage() {
       footer={
         <>
           {t('login.noAccount')}{' '}
-          <Link to="/register" className="font-semibold text-brand-400 transition-colors hover:text-brand-300">
+          <Link to="/register" className="font-semibold text-brand-600 transition-colors hover:text-brand-700">
             {t('login.registerLink')}
           </Link>
         </>
@@ -75,7 +78,7 @@ export function LoginPage() {
       <p className="mt-1 text-sm text-[var(--text-2)]">{t('login.subtitle')}</p>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-6 space-y-4">
-        {serverError && <Alert tone="error">{serverError}</Alert>}
+        {errorCode && <Alert tone="error">{localizeApiError(errorCode, t)}</Alert>}
 
         <Input
           label={t('auth.field.phone')}
@@ -85,10 +88,10 @@ export function LoginPage() {
           placeholder={t('auth.field.phonePlaceholder')}
           leftIcon={<Phone className="size-[18px]" />}
           prefix="+998"
-          error={errors.phone?.message}
+          error={fieldError(errors.phone?.message, t)}
           {...register('phone', {
-            required: t('valid.phoneRequired'),
-            validate: (v) => toE164(v) !== null || t('valid.phoneInvalid'),
+            required: 'valid.phoneRequired',
+            validate: (v) => toE164(v) !== null || 'valid.phoneInvalid',
             onChange: (e) => setValue('phone', formatNationalPhone(e.target.value)),
           })}
         />
@@ -97,15 +100,15 @@ export function LoginPage() {
           label={t('auth.field.password')}
           autoComplete="current-password"
           placeholder={t('auth.field.passwordPlaceholder')}
-          error={errors.password?.message}
-          {...register('password', { required: t('valid.passwordRequired') })}
+          error={fieldError(errors.password?.message, t)}
+          {...register('password', { required: 'valid.passwordRequired' })}
         />
 
         <div className="flex items-center justify-between pt-1">
           <Checkbox label={t('login.rememberMe')} {...register('rememberMe')} />
           <Link
             to="/forgot-password"
-            className="text-sm font-medium text-brand-400 transition-colors hover:text-brand-300"
+            className="text-sm font-medium text-brand-600 transition-colors hover:text-brand-700"
           >
             {t('login.forgot')}
           </Link>

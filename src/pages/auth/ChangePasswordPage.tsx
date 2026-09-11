@@ -13,6 +13,7 @@ import * as authApi from '../../api/auth.api';
 import { getApiError } from '../../api/client';
 import { useT } from '../../i18n/i18n';
 import { localizeApiError } from '../../i18n/api-errors';
+import { fieldError } from '../../i18n/form';
 
 interface FormValues {
   currentPassword: string;
@@ -26,15 +27,15 @@ interface FormValues {
  *    admin-issued temporary password. The route guard forces the user here and
  *    blocks the rest of the app until the change succeeds (server-enforced too);
  *    the "current" password is the temporary one.
- *  - VOLUNTARY: reached from "Mening profilim → Parolni o'zgartirish"; the
- *    "current" password is the user's real password.
+ *  - VOLUNTARY: reached from the profile menu; the "current" password is the
+ *    user's real password.
  * Either way the server revokes all sessions and issues this device a fresh one.
  */
 export function ChangePasswordPage() {
   const navigate = useNavigate();
   const { user, setUser, logout } = useAuth();
   const t = useT();
-  const [serverError, setServerError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const forced = !!user?.mustChangePassword;
 
   const {
@@ -51,7 +52,7 @@ export function ChangePasswordPage() {
       if (!forced) toast.success(t('changePw.toastSuccess'));
       navigate(forced ? '/app' : '/app/profile', { replace: true });
     },
-    onError: (err) => setServerError(localizeApiError(getApiError(err).code, t)),
+    onError: (err) => setErrorCode(getApiError(err).code ?? 'UNKNOWN'),
   });
 
   return (
@@ -77,8 +78,8 @@ export function ChangePasswordPage() {
       }
     >
       <div className="flex flex-col items-center text-center">
-        <span className="flex size-14 items-center justify-center rounded-full bg-brand-500/15">
-          <KeyRound className="size-8 text-brand-400" />
+        <span className="flex size-14 items-center justify-center rounded-full bg-brand-50">
+          <KeyRound className="size-8 text-brand-600" />
         </span>
         <h1 className="mt-4 text-xl font-bold text-[var(--text-1)]">
           {forced ? t('changePw.forcedTitle') : t('changePw.voluntaryTitle')}
@@ -90,42 +91,42 @@ export function ChangePasswordPage() {
 
       <form
         onSubmit={handleSubmit((v) => {
-          setServerError(null);
+          setErrorCode(null);
           mutation.mutate({ currentPassword: v.currentPassword, newPassword: v.newPassword });
         })}
         noValidate
         className="mt-6 space-y-4"
       >
-        {serverError && <Alert tone="error">{serverError}</Alert>}
+        {errorCode && <Alert tone="error">{localizeApiError(errorCode, t)}</Alert>}
 
         <PasswordInput
           label={forced ? t('changePw.tempLabel') : t('changePw.currentLabel')}
           autoComplete="current-password"
           placeholder={forced ? t('changePw.tempPlaceholder') : t('changePw.currentPlaceholder')}
-          error={errors.currentPassword?.message}
+          error={fieldError(errors.currentPassword?.message, t)}
           {...register('currentPassword', {
-            required: forced ? t('valid.tempPasswordRequired') : t('valid.currentPasswordRequired'),
+            required: forced ? 'valid.tempPasswordRequired' : 'valid.currentPasswordRequired',
           })}
         />
         <PasswordInput
           label={t('changePw.newLabel')}
           autoComplete="new-password"
           placeholder={t('changePw.newPlaceholder')}
-          error={errors.newPassword?.message}
+          error={fieldError(errors.newPassword?.message, t)}
           {...register('newPassword', {
-            required: t('valid.newPasswordRequired'),
-            minLength: { value: 8, message: t('valid.passwordMin8') },
-            validate: (v) => v !== getValues('currentPassword') || t('valid.passwordMustDiffer'),
+            required: 'valid.newPasswordRequired',
+            minLength: { value: 8, message: 'valid.passwordMin8' },
+            validate: (v) => v !== getValues('currentPassword') || 'valid.passwordMustDiffer',
           })}
         />
         <PasswordInput
           label={t('changePw.confirmLabel')}
           autoComplete="new-password"
           placeholder={t('changePw.confirmPlaceholder')}
-          error={errors.confirmPassword?.message}
+          error={fieldError(errors.confirmPassword?.message, t)}
           {...register('confirmPassword', {
-            required: t('valid.confirmRequired'),
-            validate: (v) => v === getValues('newPassword') || t('valid.passwordsMismatch'),
+            required: 'valid.confirmRequired',
+            validate: (v) => v === getValues('newPassword') || 'valid.passwordsMismatch',
           })}
         />
 

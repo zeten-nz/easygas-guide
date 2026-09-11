@@ -14,8 +14,10 @@ import { fetchBranches } from '../../api/branches.api';
 import { getApiError } from '../../api/client';
 import { formatNationalPhone, toE164 } from '../../lib/phone';
 import { REGIONS } from '../../lib/regions';
-import { useT } from '../../i18n/i18n';
+import { useT, useLocale } from '../../i18n/i18n';
 import { localizeApiError } from '../../i18n/api-errors';
+import { fieldError } from '../../i18n/form';
+import { regionLabel } from '../../i18n/labels';
 
 interface FormValues {
   firstName: string;
@@ -30,7 +32,8 @@ interface FormValues {
 
 export function RegisterPage() {
   const t = useT();
-  const [serverError, setServerError] = useState<string | null>(null);
+  const { locale } = useLocale();
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
   const branchesQuery = useQuery({ queryKey: ['branches'], queryFn: fetchBranches });
@@ -57,18 +60,18 @@ export function RegisterPage() {
   const registerMutation = useMutation({
     mutationFn: authApi.register,
     onSuccess: () => setSubmitted(true),
-    onError: (err) => setServerError(localizeApiError(getApiError(err).code, t)),
+    onError: (err) => setErrorCode(getApiError(err).code ?? 'UNKNOWN'),
   });
 
   const onSubmit = (values: FormValues) => {
-    setServerError(null);
+    setErrorCode(null);
     const phone = toE164(values.phone);
     if (!phone) return;
     registerMutation.mutate({
       firstName: values.firstName.trim(),
       lastName: values.lastName.trim(),
       phone,
-      region: values.region,
+      region: values.region, // stored value is the canonical region name (unchanged)
       branchId: Number(values.branchId),
       comment: values.comment.trim() || undefined,
       password: values.password,
@@ -79,8 +82,8 @@ export function RegisterPage() {
     return (
       <AuthLayout>
         <div className="flex flex-col items-center py-4 text-center">
-          <span className="flex size-16 items-center justify-center rounded-full bg-emerald-500/15">
-            <CheckCircle2 className="size-9 text-emerald-400" />
+          <span className="flex size-16 items-center justify-center rounded-full bg-emerald-50">
+            <CheckCircle2 className="size-9 text-emerald-600" />
           </span>
           <h1 className="mt-5 text-xl font-bold text-[var(--text-1)]">{t('register.successTitle')}</h1>
           <p className="mt-2 text-sm leading-relaxed text-[var(--text-2)]">{t('register.successBody')}</p>
@@ -99,7 +102,7 @@ export function RegisterPage() {
       footer={
         <>
           {t('register.haveAccount')}{' '}
-          <Link to="/login" className="font-semibold text-brand-400 transition-colors hover:text-brand-300">
+          <Link to="/login" className="font-semibold text-brand-600 transition-colors hover:text-brand-700">
             {t('register.loginLink')}
           </Link>
         </>
@@ -109,7 +112,7 @@ export function RegisterPage() {
       <p className="mt-1 text-sm text-[var(--text-2)]">{t('register.subtitle')}</p>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-6 space-y-4">
-        {serverError && <Alert tone="error">{serverError}</Alert>}
+        {errorCode && <Alert tone="error">{localizeApiError(errorCode, t)}</Alert>}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input
@@ -117,20 +120,20 @@ export function RegisterPage() {
             autoComplete="given-name"
             placeholder={t('register.firstNamePlaceholder')}
             leftIcon={<User className="size-[18px]" />}
-            error={errors.firstName?.message}
+            error={fieldError(errors.firstName?.message, t)}
             {...register('firstName', {
-              required: t('valid.firstNameRequired'),
-              minLength: { value: 2, message: t('valid.min2') },
+              required: 'valid.firstNameRequired',
+              minLength: { value: 2, message: 'valid.min2' },
             })}
           />
           <Input
             label={t('register.lastName')}
             autoComplete="family-name"
             placeholder={t('register.lastNamePlaceholder')}
-            error={errors.lastName?.message}
+            error={fieldError(errors.lastName?.message, t)}
             {...register('lastName', {
-              required: t('valid.lastNameRequired'),
-              minLength: { value: 2, message: t('valid.min2') },
+              required: 'valid.lastNameRequired',
+              minLength: { value: 2, message: 'valid.min2' },
             })}
           />
         </div>
@@ -143,26 +146,26 @@ export function RegisterPage() {
           placeholder={t('auth.field.phonePlaceholder')}
           leftIcon={<Phone className="size-[18px]" />}
           prefix="+998"
-          error={errors.phone?.message}
+          error={fieldError(errors.phone?.message, t)}
           {...register('phone', {
-            required: t('valid.phoneRequired'),
-            validate: (v) => toE164(v) !== null || t('valid.phoneInvalid'),
+            required: 'valid.phoneRequired',
+            validate: (v) => toE164(v) !== null || 'valid.phoneInvalid',
             onChange: (e) => setValue('phone', formatNationalPhone(e.target.value)),
           })}
         />
 
         <Select
           label={t('register.region')}
-          error={errors.region?.message}
+          error={fieldError(errors.region?.message, t)}
           defaultValue=""
-          {...register('region', { required: t('valid.regionRequired') })}
+          {...register('region', { required: 'valid.regionRequired' })}
         >
           <option value="" disabled>
             {t('register.regionPlaceholder')}
           </option>
           {REGIONS.map((r) => (
             <option key={r} value={r}>
-              {r}
+              {regionLabel(r, locale)}
             </option>
           ))}
         </Select>
@@ -170,18 +173,19 @@ export function RegisterPage() {
         <Select
           label={t('register.branch')}
           error={
-            errors.branchId?.message ?? (branchesQuery.isError ? t('register.branchError') : undefined)
+            fieldError(errors.branchId?.message, t) ??
+            (branchesQuery.isError ? t('register.branchError') : undefined)
           }
           defaultValue=""
           disabled={branchesQuery.isLoading || branchesQuery.isError}
-          {...register('branchId', { required: t('valid.branchRequired') })}
+          {...register('branchId', { required: 'valid.branchRequired' })}
         >
           <option value="" disabled>
             {branchesQuery.isLoading ? t('register.branchLoading') : t('register.branchPlaceholder')}
           </option>
           {(branchesQuery.data ?? []).map((b) => (
             <option key={b.id} value={b.id}>
-              {b.name} — {b.region}
+              {b.name} — {regionLabel(b.region, locale)}
             </option>
           ))}
         </Select>
@@ -189,8 +193,8 @@ export function RegisterPage() {
         <Input
           label={t('register.comment')}
           placeholder={t('register.commentPlaceholder')}
-          error={errors.comment?.message}
-          {...register('comment', { maxLength: { value: 500, message: t('valid.commentTooLong') } })}
+          error={fieldError(errors.comment?.message, t)}
+          {...register('comment', { maxLength: { value: 500, message: 'valid.commentTooLong' } })}
         />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -198,20 +202,20 @@ export function RegisterPage() {
             label={t('auth.field.password')}
             autoComplete="new-password"
             placeholder={t('register.passwordPlaceholder')}
-            error={errors.password?.message}
+            error={fieldError(errors.password?.message, t)}
             {...register('password', {
-              required: t('valid.passwordRequired'),
-              minLength: { value: 8, message: t('valid.passwordMin8') },
+              required: 'valid.passwordRequired',
+              minLength: { value: 8, message: 'valid.passwordMin8' },
             })}
           />
           <PasswordInput
             label={t('register.confirmPassword')}
             autoComplete="new-password"
             placeholder={t('register.confirmPlaceholder')}
-            error={errors.confirmPassword?.message}
+            error={fieldError(errors.confirmPassword?.message, t)}
             {...register('confirmPassword', {
-              required: t('valid.confirmRequired'),
-              validate: (v) => v === getValues('password') || t('valid.passwordsMismatch'),
+              required: 'valid.confirmRequired',
+              validate: (v) => v === getValues('password') || 'valid.passwordsMismatch',
             })}
           />
         </div>
