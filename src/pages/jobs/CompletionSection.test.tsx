@@ -2,6 +2,7 @@ import { test, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { AxiosError } from 'axios';
 import { renderWithProviders } from '../../test/utils';
+import { I18nProvider } from '../../i18n/i18n';
 import type { Job } from '../../types/entities';
 
 let mockUser: { permissions: string[] } | null = null;
@@ -67,7 +68,7 @@ test('shows the blocking-risk completion condition row (all blockers incl. risk)
     signature: null,
     jobStatus: 'IN_PROGRESS',
   });
-  renderWithProviders(<CompletionSection job={inProgress} />);
+  renderWithProviders(<I18nProvider><CompletionSection job={inProgress} /></I18nProvider>);
   expect(await screen.findByText(/Hal qilinmagan bloklaydigan xavf yo'q/i)).toBeInTheDocument();
   expect(screen.getByText('Hal qilinmagan kritik xavf')).toBeInTheDocument();
 });
@@ -75,7 +76,7 @@ test('shows the blocking-risk completion condition row (all blockers incl. risk)
 test('shows the signable summary + signing digest before capturing the signature', async () => {
   fetchCompletion.mockResolvedValue({ readiness: { canComplete: false, reasons: [], conditions }, signature: null, jobStatus: 'IN_PROGRESS' });
   getSignableSummary.mockResolvedValue(summary);
-  renderWithProviders(<CompletionSection job={inProgress} />);
+  renderWithProviders(<I18nProvider><CompletionSection job={inProgress} /></I18nProvider>);
   expect(await screen.findByText('DIGEST_ABC_123')).toBeInTheDocument();
   expect(screen.getByText(/Mijoz tasdig'i va imzosi/i)).toBeInTheDocument();
 });
@@ -84,7 +85,7 @@ test('submits the signature BOUND to the server digest', async () => {
   fetchCompletion.mockResolvedValue({ readiness: { canComplete: false, reasons: [], conditions }, signature: null, jobStatus: 'IN_PROGRESS' });
   getSignableSummary.mockResolvedValue(summary);
   uploadSignature.mockResolvedValue({ id: 1, createdAt: '2026-09-05T00:00:00Z' });
-  renderWithProviders(<CompletionSection job={inProgress} />);
+  renderWithProviders(<I18nProvider><CompletionSection job={inProgress} /></I18nProvider>);
 
   await screen.findByText('DIGEST_ABC_123'); // summary + digest loaded
   const canvas = document.querySelector('canvas')!;
@@ -101,7 +102,7 @@ test('a stale summary (SIGNATURE_STALE) forces a re-sign by refetching the summa
   const stale = new AxiosError('stale');
   stale.response = { data: { error: { code: 'SIGNATURE_STALE', message: 'stale' } } } as never;
   uploadSignature.mockRejectedValue(stale);
-  renderWithProviders(<CompletionSection job={inProgress} />);
+  renderWithProviders(<I18nProvider><CompletionSection job={inProgress} /></I18nProvider>);
 
   await screen.findByText('DIGEST_ABC_123');
   const canvas = document.querySelector('canvas')!;
@@ -122,7 +123,7 @@ test('a COMPLETED job shows the immutable, digest-sealed snapshot', async () => 
     content: { schemaVersion: '1', provenance: 'FINALIZED', summary: summary.summary, summaryDigest: 'DIGEST_ABC_123', assignment: { technicianId: 3, status: 'ASSIGNED' }, signature: null, risks: [] },
   });
   const completed = { ...inProgress, status: 'COMPLETED', closedByName: 'Master' } as unknown as Job;
-  renderWithProviders(<CompletionSection job={completed} />);
+  renderWithProviders(<I18nProvider><CompletionSection job={completed} /></I18nProvider>);
   expect(await screen.findByText('SNAP_DIGEST_XYZ')).toBeInTheDocument();
 });
 
@@ -131,6 +132,6 @@ test('a legacy COMPLETED job with no snapshot says so honestly', async () => {
   fetchCompletion.mockResolvedValue({ readiness: { canComplete: true, reasons: [], conditions: { ...conditions, signature: true } }, signature: null, jobStatus: 'COMPLETED' });
   getCompletionSnapshot.mockResolvedValue(null);
   const completed = { ...inProgress, status: 'COMPLETED', closedByName: 'Master' } as unknown as Job;
-  renderWithProviders(<CompletionSection job={completed} />);
+  renderWithProviders(<I18nProvider><CompletionSection job={completed} /></I18nProvider>);
   expect(await screen.findByText(/muhrlangan snapshot yo'q/i)).toBeInTheDocument();
 });

@@ -163,6 +163,13 @@ export const uz = {
   'account.profile': 'Mening profilim',
   'account.logout': 'Chiqish',
 
+  // ---- Role display labels (codes are stable; only labels localize) ---------
+  'role.USTA': 'Service ustasi',
+  'role.MASTER': 'Service masteri',
+  'role.RAHBAR': 'Service rahbari',
+  'role.SIFAT': 'Sifat nazorati',
+  'role.ADMIN': 'Administrator',
+
   // ---- Home (workspace landing) ---------------------------------------------
   'home.welcome': 'Xush kelibsiz, {name}',
   'home.empty': "Ishni boshlash uchun yuqoridagi menyudan bo'lim tanlang.",
@@ -194,5 +201,19 @@ export const uz = {
   'error.TOO_MANY_REQUESTS': "Juda ko'p urinish. Birozdan so'ng qayta urinib ko'ring.",
   'error.NETWORK_ERROR': "Server bilan aloqa yo'q. Internetni tekshiring.",
   'error.NOT_FOUND': 'Topilmadi',
+  'error.FORBIDDEN': "Bu amal uchun ruxsatingiz yo'q",
+  'error.DUPLICATE': 'Bunday yozuv allaqachon mavjud',
+  'error.CONFLICT_RETRY': "Ma'lumot o'zgardi. Qayta urinib ko'ring.",
+  'error.STEP_STATE_CHANGED': "Qadam holati o'zgardi. Sahifani yangilang.",
+  'error.JOB_STATE_CHANGED': "Ish holati o'zgardi. Sahifani yangilang.",
+  'error.STORAGE_UNAVAILABLE': "Fayl xotirasi vaqtincha ishlamayapti. Qayta urinib ko'ring.",
+  'error.CRITICAL_RISK_UNRESOLVED': 'Kritik xavf hal etilmagan',
+  'error.REQUIRED_PHOTOS_MISSING': 'Majburiy suratlar yuklanmagan',
+  'error.CUSTOMER_SIGNATURE_REQUIRED': 'Mijoz imzosi talab qilinadi',
+  'error.CHECKLIST_INCOMPLETE': "Checklist to'liq bajarilmagan",
+  'error.STOP_APPROVAL_PENDING': 'STOP tasdig‘i kutilmoqda',
+  'error.STOP_REJECTED': 'STOP rad etildi',
+  'error.RISK_POLICY_NOT_APPROVED': 'Xavf siyosati tasdiqlanmagan',
+  'error.TEMPLATE_HAS_HISTORY': "Nashr qilingan shablonni o'chirib bo'lmaydi",
   'error.fallback': "Kutilmagan xatolik yuz berdi. Qayta urinib ko'ring.",
 } as const;

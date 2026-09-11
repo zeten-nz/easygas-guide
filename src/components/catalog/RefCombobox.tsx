@@ -3,6 +3,8 @@ import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-quer
 import { Check, ChevronsUpDown, Loader2, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { getApiError } from '../../api/client';
+import { useT } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
 import { getReferenceById, listReference } from '../../api/reference.api';
 import type { ReferenceItem, ReferenceKind } from '../../types/catalog';
 
@@ -31,8 +33,10 @@ interface Props {
  * never NEWLY selected. Keyboard: ↑/↓ move, Enter selects, Esc closes;
  * loading/empty/error states are surfaced.
  */
-export function RefCombobox({ kind, value, onChange, label, placeholder = 'Tanlang', allowClear = false, error, ariaLabel }: Props) {
+export function RefCombobox({ kind, value, onChange, label, placeholder, allowClear = false, error, ariaLabel }: Props) {
+  const t = useT();
   const queryClient = useQueryClient();
+  const resolvedPlaceholder = placeholder ?? t('cat.combobox.select');
   const id = useId();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -51,8 +55,8 @@ export function RefCombobox({ kind, value, onChange, label, placeholder = 'Tanla
 
   // Debounce the search (setState is inside the timeout — asynchronous).
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(search), 300);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setDebounced(search), 300);
+    return () => clearTimeout(timer);
   }, [search]);
 
   // Paged, bounded results — a new `debounced` term starts a fresh query at page 1.
@@ -136,8 +140,8 @@ export function RefCombobox({ kind, value, onChange, label, placeholder = 'Tanla
           )}
         >
           <span className={cn('truncate', !value && 'text-[var(--text-3)]')}>
-            {value ? selectedLabel : placeholder}
-            {isArchived && <span className="ml-2 text-xs text-amber-600">(arxivlangan)</span>}
+            {value ? selectedLabel : resolvedPlaceholder}
+            {isArchived && <span className="ml-2 text-xs text-amber-600">{t('cat.combobox.archived')}</span>}
           </span>
           <span className="flex items-center gap-1">
             {allowClear && value != null && (
@@ -148,7 +152,7 @@ export function RefCombobox({ kind, value, onChange, label, placeholder = 'Tanla
                   onChange(null);
                 }}
                 role="button"
-                aria-label="Tozalash"
+                aria-label={t('cat.action.clear')}
               />
             )}
             <ChevronsUpDown className="size-4 text-[var(--text-3)]" />
@@ -166,7 +170,7 @@ export function RefCombobox({ kind, value, onChange, label, placeholder = 'Tanla
                   setActive(0);
                 }}
                 onKeyDown={onKeyDown}
-                placeholder="Qidiruv…"
+                placeholder={t('cat.combobox.searchPlaceholder')}
                 aria-controls={`${id}-listbox`}
                 aria-autocomplete="list"
                 className="h-9 w-full rounded-lg border border-[var(--border-1)] bg-[var(--field-bg)] px-3 text-sm focus:border-blue-500/70 focus:outline-none focus:ring-2 focus:ring-blue-500/25"
@@ -175,17 +179,17 @@ export function RefCombobox({ kind, value, onChange, label, placeholder = 'Tanla
             <ul id={`${id}-listbox`} role="listbox" className="max-h-60 overflow-y-auto py-1">
               {list.isLoading ? (
                 <li className="flex items-center justify-center gap-2 py-6 text-sm text-[var(--text-2)]">
-                  <Loader2 className="size-4 animate-spin" /> Yuklanmoqda…
+                  <Loader2 className="size-4 animate-spin" /> {t('common.loading')}
                 </li>
               ) : list.isError ? (
                 <li className="px-3 py-4 text-sm text-red-600">
-                  {getApiError(list.error).message}{' '}
+                  {localizeApiError(getApiError(list.error).code, t)}{' '}
                   <button type="button" className="underline" onClick={() => list.refetch()}>
-                    Qayta urinish
+                    {t('common.retry')}
                   </button>
                 </li>
               ) : items.length === 0 ? (
-                <li className="py-6 text-center text-sm text-[var(--text-2)]">Topilmadi</li>
+                <li className="py-6 text-center text-sm text-[var(--text-2)]">{t('cat.combobox.notFound')}</li>
               ) : (
                 items.map((it, i) => (
                   <li key={it.id}>
@@ -214,7 +218,7 @@ export function RefCombobox({ kind, value, onChange, label, placeholder = 'Tanla
                     disabled={list.isFetchingNextPage}
                     className="w-full rounded-lg py-2 text-center text-sm font-medium text-blue-700 hover:bg-[var(--surface-2)] disabled:opacity-50"
                   >
-                    {list.isFetchingNextPage ? 'Yuklanmoqda…' : `Yana yuklash (${items.length}/${total})`}
+                    {list.isFetchingNextPage ? t('common.loading') : t('cat.combobox.loadMore', { count: items.length, total })}
                   </button>
                 </li>
               )}

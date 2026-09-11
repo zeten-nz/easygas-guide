@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../features/auth/auth-context';
 import { can } from '../../lib/permissions';
-import { ROLE_LABELS } from '../../types/auth';
 import { useT } from '../../i18n/i18n';
+import { roleLabel } from '../../i18n/labels';
 import type { MessageKey } from '../../i18n/types';
 import { NAV_GROUPS } from './nav-config';
 
@@ -32,7 +32,7 @@ export function HomePage() {
     <div>
       <div>
         <h1 className="text-2xl font-bold text-[var(--text-1)]">{t('home.welcome', { name: user.firstName })}</h1>
-        <p className="mt-1 text-sm text-[var(--text-2)]">{ROLE_LABELS[user.role]}</p>
+        <p className="mt-1 text-sm text-[var(--text-2)]">{roleLabel(user.role, t)}</p>
       </div>
 
       {cards.length > 0 ? (

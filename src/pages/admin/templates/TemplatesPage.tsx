@@ -12,15 +12,19 @@ import { Spinner } from '../../../components/ui/Spinner';
 import { Modal } from '../../../components/ui/Modal';
 import { DropdownMenu, MenuItem } from '../../../components/ui/DropdownMenu';
 import { TemplateStatusBadge, VersionChips } from './template-status';
-import { templateStatus } from './template-lifecycle';
+import { statusLabel, templateStatus } from './template-lifecycle';
 import { DeleteTemplateDialog } from './DeleteTemplateDialog';
 import * as templatesApi from '../../../api/templates.api';
 import { getApiError } from '../../../api/client';
+import { useT } from '../../../i18n/i18n';
+import { localizeApiError } from '../../../i18n/api-errors';
+import { fieldError } from '../../../i18n/form';
 import type { ChecklistTemplate } from '../../../types/entities';
 
 type StatusFilter = '' | 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 
 export function TemplatesPage() {
+  const t = useT();
   const navigate = useNavigate();
   const [createOpen, setCreateOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
@@ -30,30 +34,28 @@ export function TemplatesPage() {
 
   const filtered = useMemo(() => {
     const list = templatesQuery.data ?? [];
-    return statusFilter ? list.filter((t) => templateStatus(t) === statusFilter) : list;
+    return statusFilter ? list.filter((tpl) => templateStatus(tpl) === statusFilter) : list;
   }, [templatesQuery.data, statusFilter]);
 
   return (
     <div className="mx-auto max-w-4xl">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-1)]">Checklist shablonlari</h1>
-          <p className="mt-1 text-sm text-[var(--text-2)]">
-            Yangi ishlar faol (nashr qilingan) versiyadan foydalanadi. Eski ishlar o'z versiyasini saqlab qoladi.
-          </p>
+          <h1 className="text-2xl font-bold text-[var(--text-1)]">{t('tpl.page.title')}</h1>
+          <p className="mt-1 text-sm text-[var(--text-2)]">{t('tpl.page.subtitle')}</p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
           <Plus className="size-4" />
-          Yangi shablon
+          {t('tpl.new')}
         </Button>
       </div>
 
       <div className="mt-6 sm:max-w-xs">
-        <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as StatusFilter)} aria-label="Holat bo'yicha filtr">
-          <option value="">Barcha holatlar</option>
-          <option value="PUBLISHED">Faol</option>
-          <option value="DRAFT">Qoralama</option>
-          <option value="ARCHIVED">Arxivlangan</option>
+        <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as StatusFilter)} aria-label={t('tpl.filter.aria')}>
+          <option value="">{t('tpl.filter.all')}</option>
+          <option value="PUBLISHED">{statusLabel('PUBLISHED', t)}</option>
+          <option value="DRAFT">{statusLabel('DRAFT', t)}</option>
+          <option value="ARCHIVED">{statusLabel('ARCHIVED', t)}</option>
         </Select>
       </div>
 
@@ -63,31 +65,31 @@ export function TemplatesPage() {
             <Spinner className="size-7 text-blue-600" />
           </div>
         ) : templatesQuery.isError ? (
-          <Alert tone="error">{getApiError(templatesQuery.error).message}</Alert>
+          <Alert tone="error">{localizeApiError(getApiError(templatesQuery.error).code, t)}</Alert>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[var(--border-1)] py-16 text-[var(--text-2)]">
             <ClipboardList className="size-8 text-[var(--text-3)]" />
-            <p className="text-sm">{statusFilter ? 'Bu holatda shablon yo\'q' : "Hozircha shablonlar yo'q"}</p>
+            <p className="text-sm">{statusFilter ? t('tpl.empty.filtered') : t('tpl.empty.none')}</p>
           </div>
         ) : (
-          filtered.map((t) => (
+          filtered.map((tpl) => (
             <div
-              key={t.id}
+              key={tpl.id}
               className="flex items-start justify-between gap-3 rounded-2xl border border-[var(--border-1)] bg-[var(--surface)] p-4"
             >
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <Link
-                    to={`/app/admin/templates/${t.id}`}
+                    to={`/app/admin/templates/${tpl.id}`}
                     className="font-semibold text-[var(--text-1)] hover:text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
                   >
-                    {t.name}
+                    {tpl.name}
                   </Link>
-                  <TemplateStatusBadge template={t} />
+                  <TemplateStatusBadge template={tpl} />
                 </div>
-                {t.description && <p className="mt-0.5 text-sm text-[var(--text-2)]">{t.description}</p>}
+                {tpl.description && <p className="mt-0.5 text-sm text-[var(--text-2)]">{tpl.description}</p>}
                 <div className="mt-2">
-                  <VersionChips template={t} />
+                  <VersionChips template={tpl} />
                 </div>
               </div>
 
@@ -96,7 +98,7 @@ export function TemplatesPage() {
                 button={
                   <button
                     type="button"
-                    aria-label={`${t.name} — amallar`}
+                    aria-label={t('tpl.row.actionsAria', { name: tpl.name })}
                     className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-[var(--text-2)] hover:bg-[var(--surface-2)] hover:text-[var(--text-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
                   >
                     <MoreHorizontal className="size-5" />
@@ -109,25 +111,25 @@ export function TemplatesPage() {
                       icon={<SquareArrowOutUpRight className="size-[18px]" />}
                       onClick={() => {
                         close();
-                        navigate(`/app/admin/templates/${t.id}`);
+                        navigate(`/app/admin/templates/${tpl.id}`);
                       }}
                     >
-                      Ochish
+                      {t('tpl.action.open')}
                     </MenuItem>
                     <MenuItem
                       icon={<Trash2 className="size-[18px]" />}
                       danger
-                      disabled={t.deletable === false}
+                      disabled={tpl.deletable === false}
                       onClick={() => {
                         close();
-                        setDeleteTarget(t);
+                        setDeleteTarget(tpl);
                       }}
                     >
-                      O'chirish
+                      {t('tpl.action.delete')}
                     </MenuItem>
-                    {t.deletable === false && (
+                    {tpl.deletable === false && (
                       <p className="px-3 pb-1.5 pt-1 text-xs text-[var(--text-3)]">
-                        Nashr qilingan yoki arxivlangan shablon o'chirilmaydi — tarixni saqlaydi.
+                        {t('tpl.row.deleteBlocked')}
                       </p>
                     )}
                   </>
@@ -145,6 +147,7 @@ export function TemplatesPage() {
 }
 
 function CreateTemplateModal({ onClose }: { onClose: () => void }) {
+  const t = useT();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -159,33 +162,33 @@ function CreateTemplateModal({ onClose }: { onClose: () => void }) {
     mutationFn: (v: { name: string; description: string }) =>
       templatesApi.createTemplate({ name: v.name.trim(), description: v.description.trim() || null }),
     onSuccess: (template) => {
-      toast.success('Shablon yaratildi (v1 qoralama tayyor)');
+      toast.success(t('tpl.toast.created'));
       queryClient.invalidateQueries({ queryKey: ['templates'] });
       navigate(`/app/admin/templates/${template.id}`);
     },
-    onError: (err) => setServerError(getApiError(err).message),
+    onError: (err) => setServerError(localizeApiError(getApiError(err).code, t)),
   });
 
   return (
-    <Modal open onClose={onClose} title="Yangi checklist shabloni">
+    <Modal open onClose={onClose} title={t('tpl.create.title')}>
       <form onSubmit={handleSubmit((v) => mutation.mutate(v))} noValidate className="space-y-4">
         {serverError && <Alert tone="error">{serverError}</Alert>}
         <Input
-          label="Shablon nomi"
-          placeholder="Masalan: LPG o'rnatish tekshiruv ro'yxati"
-          error={errors.name?.message}
+          label={t('tpl.field.name')}
+          placeholder={t('tpl.create.namePlaceholder')}
+          error={fieldError(errors.name?.message, t)}
           {...register('name', {
-            required: 'Shablon nomi kiritilishi shart',
-            minLength: { value: 3, message: 'Kamida 3 ta belgi' },
+            required: 'tpl.valid.nameRequired',
+            minLength: { value: 3, message: 'tpl.valid.min3' },
           })}
         />
-        <Input label="Tavsif (ixtiyoriy)" placeholder="Qisqa tavsif" {...register('description')} />
+        <Input label={t('tpl.field.descriptionOptional')} placeholder={t('tpl.create.descPlaceholder')} {...register('description')} />
         <div className="flex justify-end gap-3 pt-1">
           <Button type="button" variant="ghost" onClick={onClose} disabled={mutation.isPending}>
-            Bekor qilish
+            {t('common.cancel')}
           </Button>
           <Button type="submit" loading={mutation.isPending}>
-            Yaratish
+            {t('tpl.create.submit')}
           </Button>
         </div>
       </form>

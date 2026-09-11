@@ -28,18 +28,21 @@ import { can } from '../../lib/permissions';
 import { displayPhone } from '../../lib/phone';
 import { cn } from '../../lib/utils';
 import type { Customer, Vehicle } from '../../types/entities';
+import { useT } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
 
 type Step = 1 | 2 | 3;
 
-const STEP_TITLES: Record<Step, string> = {
-  1: 'Mijozni tanlang',
-  2: 'Avtomobilni tanlang',
-  3: "Ma'lumotlarni tekshiring",
-};
-
 export function CreateJobPage() {
+  const t = useT();
   const { user: actor } = useAuth();
   const navigate = useNavigate();
+
+  const stepTitles: Record<Step, string> = {
+    1: t('ja.create.step1'),
+    2: t('ja.create.step2'),
+    3: t('ja.create.step3'),
+  };
 
   const [step, setStep] = useState<Step>(1);
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -75,12 +78,12 @@ export function CreateJobPage() {
   const createMutation = useMutation({
     mutationFn: () => jobsApi.createJob(customer!.id, vehicle!.id),
     onSuccess: (job) => {
-      toast.success(`Ish #${job.id} ochildi`);
+      toast.success(t('ja.create.toastCreated', { id: job.id }));
       navigate(`/app/jobs/${job.id}`, { replace: true });
     },
     onError: (err) => {
       setConfirmOpen(false);
-      toast.error(getApiError(err).message);
+      toast.error(localizeApiError(getApiError(err).code, t));
     },
   });
 
@@ -93,7 +96,7 @@ export function CreateJobPage() {
   if (!actor?.branchId) {
     return (
       <div className="mx-auto max-w-2xl">
-        <Alert tone="error">Sizga filial biriktirilmagan — ish ochish uchun administrator bilan bog'laning.</Alert>
+        <Alert tone="error">{t('ja.create.noBranch')}</Alert>
       </div>
     );
   }
@@ -105,10 +108,10 @@ export function CreateJobPage() {
         className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--text-2)] transition-colors hover:text-[var(--text-1)]"
       >
         <ArrowLeft className="size-4" />
-        Ishlar
+        {t('ja.jobs.title')}
       </Link>
 
-      <h1 className="mt-3 text-xl font-bold text-[var(--text-1)]">Yangi ish ochish</h1>
+      <h1 className="mt-3 text-xl font-bold text-[var(--text-1)]">{t('ja.jobs.newJob')}</h1>
 
       {/* Step indicator */}
       <div className="mt-4 flex items-center gap-2">
@@ -127,29 +130,29 @@ export function CreateJobPage() {
             <span
               className={cn('hidden text-xs font-medium sm:block', s === step ? 'text-[var(--text-1)]' : 'text-[var(--text-2)]')}
             >
-              {STEP_TITLES[s]}
+              {stepTitles[s]}
             </span>
             {s < 3 && <div className="h-px flex-1 bg-[var(--border-1)]" />}
           </div>
         ))}
       </div>
-      <p className="mt-2 text-sm font-medium text-[var(--text-1)] sm:hidden">{STEP_TITLES[step]}</p>
+      <p className="mt-2 text-sm font-medium text-[var(--text-1)] sm:hidden">{stepTitles[step]}</p>
 
       {/* Step 1 — find customer */}
       {step === 1 && (
         <div className="mt-5 space-y-3">
           <div className="flex gap-2">
             <Input
-              placeholder="Ism yoki telefon bo'yicha qidirish..."
+              placeholder={t('ja.create.customerSearchPlaceholder')}
               leftIcon={<Search className="size-[18px]" />}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              aria-label="Mijoz qidirish"
+              aria-label={t('ja.create.customerSearchAria')}
             />
             {can(actor, 'customers.manage') && (
               <Button variant="secondary" onClick={() => setNewCustomerOpen(true)} className="shrink-0">
                 <Plus className="size-4" />
-                <span className="hidden sm:inline">Yangi mijoz</span>
+                <span className="hidden sm:inline">{t('ja.create.newCustomer')}</span>
               </Button>
             )}
           </div>
@@ -159,10 +162,10 @@ export function CreateJobPage() {
               <Spinner className="size-6 text-brand-500" />
             </div>
           )}
-          {customersQuery.isError && <Alert tone="error">{getApiError(customersQuery.error).message}</Alert>}
+          {customersQuery.isError && <Alert tone="error">{localizeApiError(getApiError(customersQuery.error).code, t)}</Alert>}
           {customersQuery.data?.customers.length === 0 && (
             <div className="rounded-2xl border border-dashed border-[var(--border-1)] py-10 text-center text-sm text-[var(--text-2)]">
-              Mijoz topilmadi — yangi mijoz yarating
+              {t('ja.create.noCustomers')}
             </div>
           )}
           {customersQuery.data?.customers.map((c) => (
@@ -175,7 +178,7 @@ export function CreateJobPage() {
               <div>
                 <p className="font-semibold text-[var(--text-1)]">{c.name}</p>
                 <p className="mt-0.5 text-sm text-[var(--text-2)]">
-                  {displayPhone(c.phone)} · {c.vehicleCount} ta avtomobil
+                  {displayPhone(c.phone)} · {t('ja.create.vehicleCount', { count: c.vehicleCount })}
                 </p>
               </div>
               <ChevronsRight className="size-5 shrink-0 text-[var(--text-2)]" />
@@ -194,14 +197,14 @@ export function CreateJobPage() {
               <span className="text-[var(--text-2)]">{displayPhone(customer.phone)}</span>
             </div>
             <Button variant="ghost" size="md" onClick={() => setStep(1)}>
-              O'zgartirish
+              {t('ja.create.change')}
             </Button>
           </div>
 
           {can(actor, 'vehicles.manage') && (
             <Button variant="secondary" onClick={() => setNewVehicleOpen(true)} className="w-full">
               <Plus className="size-4" />
-              Avtomobil qo'shish
+              {t('ja.create.addVehicle')}
             </Button>
           )}
 
@@ -210,11 +213,11 @@ export function CreateJobPage() {
               <Spinner className="size-6 text-brand-500" />
             </div>
           )}
-          {vehiclesQuery.isError && <Alert tone="error">{getApiError(vehiclesQuery.error).message}</Alert>}
+          {vehiclesQuery.isError && <Alert tone="error">{localizeApiError(getApiError(vehiclesQuery.error).code, t)}</Alert>}
           {vehiclesQuery.data?.length === 0 && (
             <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-[var(--border-1)] py-10 text-[var(--text-2)]">
               <Car className="size-7" />
-              <p className="text-sm">Bu mijozda hali avtomobil yo'q — avval avtomobil qo'shing</p>
+              <p className="text-sm">{t('ja.create.noVehicles')}</p>
             </div>
           )}
           {vehiclesQuery.data?.map((v) => (
@@ -246,22 +249,22 @@ export function CreateJobPage() {
       {step === 3 && customer && vehicle && (
         <div className="mt-5 space-y-4">
           <div className="rounded-3xl border border-[var(--border-1)] bg-[var(--surface)] p-5">
-            <ReviewRow icon={<UserRound className="size-4" />} label="Mijoz" value={`${customer.name} · ${displayPhone(customer.phone)}`} />
+            <ReviewRow icon={<UserRound className="size-4" />} label={t('ja.create.reviewCustomer')} value={`${customer.name} · ${displayPhone(customer.phone)}`} />
             <ReviewRow
               icon={<Car className="size-4" />}
-              label="Avtomobil"
+              label={t('ja.create.reviewVehicle')}
               value={`${vehicle.make} ${vehicle.model}${vehicle.year ? ` · ${vehicle.year}` : ''}`}
             />
-            <ReviewRow icon={<span className="font-mono text-xs font-bold">№</span>} label="Davlat raqami" value={vehicle.plateNumber} mono />
-            <ReviewRow icon={<Building2 className="size-4" />} label="Filial" value={branchName} last />
+            <ReviewRow icon={<span className="font-mono text-xs font-bold">№</span>} label={t('ja.create.reviewPlate')} value={vehicle.plateNumber} mono />
+            <ReviewRow icon={<Building2 className="size-4" />} label={t('ja.create.reviewBranch')} value={branchName} last />
           </div>
 
           <div className="flex gap-3">
             <Button variant="ghost" onClick={() => setStep(2)} className="flex-1">
-              Orqaga
+              {t('common.back')}
             </Button>
             <Button onClick={() => setConfirmOpen(true)} className="flex-[2]" size="lg">
-              Ish ochish
+              {t('ja.create.openJob')}
             </Button>
           </div>
         </div>
@@ -269,13 +272,13 @@ export function CreateJobPage() {
 
       <ConfirmDialog
         open={confirmOpen}
-        title="Yangi ish"
-        confirmLabel="Ha, ish ochilsin"
+        title={t('ja.create.confirmTitle')}
+        confirmLabel={t('ja.create.confirmLabel')}
         loading={createMutation.isPending}
         onConfirm={() => createMutation.mutate()}
         onCancel={() => setConfirmOpen(false)}
       >
-        Ushbu avtomobil uchun yangi ish ochilsinmi?
+        {t('ja.create.confirmBody')}
         <span className="mt-2 block font-mono font-bold text-[var(--text-1)]">{vehicle?.plateNumber}</span>
       </ConfirmDialog>
 

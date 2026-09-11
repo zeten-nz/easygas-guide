@@ -1,4 +1,4 @@
-import { uz } from './messages/uz';
+import { uz } from './messages';
 
 /** Supported user-facing locales: Uzbek (Latin) — default — and Russian (Cyrillic). */
 export type Locale = 'uz' | 'ru';

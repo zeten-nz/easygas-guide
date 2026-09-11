@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useT } from '../../i18n/i18n';
 
 interface PaginationProps {
   page: number;
@@ -13,21 +14,23 @@ interface PaginationProps {
 }
 
 /**
- * Shared directory pagination. Shows a PERSISTENT summary (even for a single
- * page): "Jami N xodim · a–b ko'rsatilmoqda", a page-size selector (25 / 50), and
- * previous/next with the current page. Renders nothing when there are no rows —
- * the caller owns the empty state. All page/size changes are driven by the caller
- * (which keeps them in the URL), so Back/Forward restores the view.
+ * Shared directory pagination. Shows a PERSISTENT, count-agnostic summary
+ * (even for a single page) — the caller's `noun` is intentionally not used in
+ * the sentence, since it cannot be correctly declined for every locale — plus
+ * a page-size selector (25 / 50) and previous/next with the current page.
+ * Renders nothing when there are no rows — the caller owns the empty state.
+ * All page/size changes are driven by the caller (which keeps them in the
+ * URL), so Back/Forward restores the view.
  */
 export function Pagination({
   page,
   pageSize,
   total,
-  noun,
   onPageChange,
   onPageSizeChange,
   pageSizeOptions = [25, 50],
 }: PaginationProps) {
+  const t = useT();
   if (total <= 0) return null;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const start = (page - 1) * pageSize + 1;
@@ -35,21 +38,15 @@ export function Pagination({
 
   return (
     <div className="flex flex-col gap-3 border-t border-[var(--border-1)] pt-4 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm text-[var(--text-2)]">
-        Jami <span className="font-semibold text-[var(--text-1)]">{total}</span> {noun} ·{' '}
-        <span className="tabular-nums">
-          {start}–{end}
-        </span>{' '}
-        ko'rsatilmoqda
-      </p>
+      <p className="text-sm text-[var(--text-2)]">{t('m.pagination.summary', { total, from: start, to: end })}</p>
 
       <div className="flex items-center gap-4">
         <label className="flex items-center gap-2 text-sm text-[var(--text-2)]">
-          <span className="hidden sm:inline">Sahifada</span>
+          <span className="hidden sm:inline">{t('m.pagination.perPage')}</span>
           <select
             value={pageSize}
             onChange={(e) => onPageSizeChange(Number(e.target.value))}
-            aria-label="Sahifadagi qatorlar soni"
+            aria-label={t('ui.pagination.rowsPerPage')}
             className="h-9 rounded-lg border border-[var(--border-1)] bg-[var(--surface)] px-2 text-sm text-[var(--text-1)] focus:border-blue-500/70 focus:outline-none focus:ring-2 focus:ring-blue-500/25"
           >
             {pageSizeOptions.map((n) => (
@@ -62,17 +59,17 @@ export function Pagination({
 
         <div className="flex items-center gap-2">
           <PageButton
-            aria-label="Oldingi sahifa"
+            aria-label={t('ui.pagination.prev')}
             disabled={page <= 1}
             onClick={() => onPageChange(page - 1)}
           >
             <ChevronLeft className="size-4" />
           </PageButton>
           <span className="min-w-[104px] text-center text-sm tabular-nums text-[var(--text-2)]">
-            Sahifa <span className="font-semibold text-[var(--text-1)]">{page}</span> / {totalPages}
+            {t('m.pagination.page', { page, total: totalPages })}
           </span>
           <PageButton
-            aria-label="Keyingi sahifa"
+            aria-label={t('ui.pagination.next')}
             disabled={page >= totalPages}
             onClick={() => onPageChange(page + 1)}
           >

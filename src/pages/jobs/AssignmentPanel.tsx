@@ -11,12 +11,16 @@ import { can } from '../../lib/permissions';
 import { getApiError } from '../../api/client';
 import * as safety from '../../api/safety.api';
 import type { Job } from '../../types/entities';
+import { useT, useDateTime } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
+import type { MessageKey } from '../../i18n/types';
 
-const PROVENANCE_LABEL: Record<string, string> = {
-  SELF_AT_CREATION: 'Ochilishda biriktirildi',
-  REASSIGNED: 'Qayta biriktirildi',
-  UNASSIGNED: 'Biriktiruv bekor qilindi',
-  SUPERVISOR_OVERRIDE: 'Rahbar tomonidan',
+/** Maps a stable assignment provenance CODE to its localized DISPLAY label key. */
+const PROVENANCE_KEYS: Record<string, MessageKey> = {
+  SELF_AT_CREATION: 'ja.assign.provenance.SELF_AT_CREATION',
+  REASSIGNED: 'ja.assign.provenance.REASSIGNED',
+  UNASSIGNED: 'ja.assign.provenance.UNASSIGNED',
+  SUPERVISOR_OVERRIDE: 'ja.assign.provenance.SUPERVISOR_OVERRIDE',
 };
 
 /**
@@ -27,6 +31,8 @@ const PROVENANCE_LABEL: Record<string, string> = {
  * separately from the responsible technician.
  */
 export function AssignmentPanel({ job, onChanged }: { job: Job; onChanged: () => void }) {
+  const t = useT();
+  const fmtDt = useDateTime();
   const { user: actor } = useAuth();
   const qc = useQueryClient();
   const mayAssign = can(actor, 'jobs.assign');
@@ -46,7 +52,7 @@ export function AssignmentPanel({ job, onChanged }: { job: Job; onChanged: () =>
   const reassign = useMutation({
     mutationFn: () => safety.assignJob(job.id, Number(technicianId), reason.trim() || undefined),
     onSuccess: () => {
-      toast.success('Texnik biriktirildi');
+      toast.success(t('ja.assign.toastAssigned'));
       setOpen(false);
       setTechnicianId('');
       setReason('');
@@ -55,7 +61,7 @@ export function AssignmentPanel({ job, onChanged }: { job: Job; onChanged: () =>
     },
     onError: (err) => {
       const e = getApiError(err);
-      toast.error(e.message);
+      toast.error(localizeApiError(e.code, t));
       // Conflict / stale → refetch the authoritative assignment state.
       if (e.code === 'JOB_TERMINAL' || e.code === 'CROSS_BRANCH_ASSIGNMENT' || e.code === 'TECHNICIAN_INACTIVE') {
         qc.invalidateQueries({ queryKey: ['jobs', 'detail', job.id] });
@@ -66,15 +72,15 @@ export function AssignmentPanel({ job, onChanged }: { job: Job; onChanged: () =>
   const history = historyQuery.data?.history ?? [];
 
   return (
-    <section aria-label="Mas'ul texnik" className="rounded-3xl border border-[var(--border-1)] bg-[var(--surface)] p-5">
+    <section aria-label={t('ja.assign.responsibleTech')} className="rounded-3xl border border-[var(--border-1)] bg-[var(--surface)] p-5">
       <div className="flex items-center justify-between gap-3">
         <p className="flex items-center gap-2 font-bold text-[var(--text-1)]">
           <UserCog className="size-4.5 text-[var(--accent)]" />
-          Mas'ul texnik
+          {t('ja.assign.responsibleTech')}
         </p>
         {mayAssign && !terminal && (
           <Button variant="secondary" onClick={() => setOpen(true)}>
-            {job.assignedTechnicianId ? 'Qayta biriktirish' : 'Biriktirish'}
+            {job.assignedTechnicianId ? t('ja.assign.reassign') : t('ja.assign.assign')}
           </Button>
         )}
       </div>
@@ -84,40 +90,40 @@ export function AssignmentPanel({ job, onChanged }: { job: Job; onChanged: () =>
         {job.assignedTechnicianName ? (
           <span className="font-semibold text-[var(--text-1)]">{job.assignedTechnicianName}</span>
         ) : (
-          <span className="text-[var(--text-2)]">Biriktirilmagan</span>
+          <span className="text-[var(--text-2)]">{t('ja.assign.unassigned')}</span>
         )}
         {job.assignmentStatus === 'LEGACY_UNASSIGNED' && (
           <span className="rounded bg-[var(--warning-bg)] px-1.5 py-0.5 text-xs font-medium text-[var(--warning-fg)]">
-            Eski yozuv
+            {t('ja.assign.legacyRecord')}
           </span>
         )}
       </div>
       <p className="mt-1 text-xs text-[var(--text-3)]">
-        Bosqichlarni aslida bajargan texniklar checklistda alohida ko'rsatiladi.
+        {t('ja.assign.stepPerformersNote')}
       </p>
 
       {history.length > 0 && (
         <details className="mt-3 text-sm">
           <summary className="inline-flex cursor-pointer items-center gap-1.5 text-[var(--text-2)]">
-            <History className="size-3.5" aria-hidden /> Biriktiruv tarixi ({history.length})
+            <History className="size-3.5" aria-hidden /> {t('ja.assign.historyToggle', { count: history.length })}
           </summary>
           <ul className="mt-2 space-y-1.5 border-l border-[var(--border-1)] pl-3">
             {history.map((h) => (
               <li key={h.id} className="text-xs text-[var(--text-2)]">
-                <span className="font-medium text-[var(--text-1)]">{PROVENANCE_LABEL[h.provenance] ?? h.provenance}</span>
-                {h.reason ? ` — ${h.reason}` : ''} · {new Date(h.createdAt).toLocaleString('uz-UZ')}
+                <span className="font-medium text-[var(--text-1)]">{PROVENANCE_KEYS[h.provenance] ? t(PROVENANCE_KEYS[h.provenance]) : h.provenance}</span>
+                {h.reason ? ` — ${h.reason}` : ''} · {fmtDt(h.createdAt)}
               </li>
             ))}
           </ul>
         </details>
       )}
 
-      <Modal open={open} onClose={reassign.isPending ? () => {} : () => setOpen(false)} title="Texnik biriktirish" className="sm:max-w-md">
-        {candidatesQuery.isError && <Alert tone="error">{getApiError(candidatesQuery.error).message}</Alert>}
+      <Modal open={open} onClose={reassign.isPending ? () => {} : () => setOpen(false)} title={t('ja.assign.modalTitle')} className="sm:max-w-md">
+        {candidatesQuery.isError && <Alert tone="error">{localizeApiError(getApiError(candidatesQuery.error).code, t)}</Alert>}
         <label className="block">
-          <span className="mb-1.5 block text-[13px] font-medium text-[var(--text-2)]">Texnik (filial ichidan)</span>
+          <span className="mb-1.5 block text-[13px] font-medium text-[var(--text-2)]">{t('ja.assign.technicianLabel')}</span>
           <Select value={technicianId} onChange={(e) => setTechnicianId(e.target.value)} disabled={candidatesQuery.isLoading}>
-            <option value="">— Tanlang —</option>
+            <option value="">{t('ja.assign.selectPlaceholder')}</option>
             {(candidatesQuery.data?.candidates ?? []).map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name} ({c.role})
@@ -126,7 +132,7 @@ export function AssignmentPanel({ job, onChanged }: { job: Job; onChanged: () =>
           </Select>
         </label>
         <label className="mt-3 block">
-          <span className="mb-1.5 block text-[13px] font-medium text-[var(--text-2)]">Sabab (ixtiyoriy)</span>
+          <span className="mb-1.5 block text-[13px] font-medium text-[var(--text-2)]">{t('ja.assign.reasonLabel')}</span>
           <textarea
             value={reason}
             onChange={(e) => setReason(e.target.value)}
@@ -137,10 +143,10 @@ export function AssignmentPanel({ job, onChanged }: { job: Job; onChanged: () =>
         </label>
         <div className="mt-4 flex justify-end gap-3">
           <Button variant="ghost" onClick={() => setOpen(false)} disabled={reassign.isPending}>
-            Bekor qilish
+            {t('common.cancel')}
           </Button>
           <Button onClick={() => reassign.mutate()} loading={reassign.isPending} disabled={!technicianId}>
-            Biriktirish
+            {t('ja.assign.assign')}
           </Button>
         </div>
       </Modal>

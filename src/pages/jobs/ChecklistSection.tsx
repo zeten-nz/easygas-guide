@@ -27,11 +27,14 @@ import { useAuth } from '../../features/auth/auth-context';
 import * as jobsApi from '../../api/jobs.api';
 import { fetchAssignableTemplates } from '../../api/templates.api';
 import { getApiError, getUploadError } from '../../api/client';
+import { useT, useDateTime } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
 import { can } from '../../lib/permissions';
 import type { Job, JobStep } from '../../types/entities';
 import { cn } from '../../lib/utils';
 
 export function ChecklistSection({ job }: { job: Job }) {
+  const t = useT();
   const { user: actor } = useAuth();
   const canExecute = can(actor, 'checklist.execute');
   const jobWorkable = job.status === 'DRAFT' || job.status === 'IN_PROGRESS';
@@ -50,7 +53,7 @@ export function ChecklistSection({ job }: { job: Job }) {
   }
 
   if (checklistQuery.isError) {
-    return <Alert tone="error">{getApiError(checklistQuery.error).message}</Alert>;
+    return <Alert tone="error">{localizeApiError(getApiError(checklistQuery.error).code, t)}</Alert>;
   }
 
   const checklist = checklistQuery.data;
@@ -61,7 +64,7 @@ export function ChecklistSection({ job }: { job: Job }) {
     ) : (
       <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-[var(--border-1)] py-10 text-[var(--text-2)]">
         <ClipboardList className="size-7" />
-        <p className="text-sm">Checklist hali biriktirilmagan</p>
+        <p className="text-sm">{t('jb.checklist.notAssigned')}</p>
       </div>
     );
   }
@@ -79,13 +82,13 @@ export function ChecklistSection({ job }: { job: Job }) {
             </span>
           </p>
           <p className="mt-0.5 text-sm text-[var(--text-2)]">
-            {checklist.progress.completed} / {checklist.progress.total} bajarildi
+            {t('jb.checklist.progressDone', { completed: checklist.progress.completed, total: checklist.progress.total })}
           </p>
         </div>
         {checklist.completedAt && (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-700">
             <CheckCircle2 className="size-3.5" />
-            Checklist yakunlandi
+            {t('jb.checklist.finished')}
           </span>
         )}
       </div>
@@ -99,12 +102,12 @@ export function ChecklistSection({ job }: { job: Job }) {
 
       {job.status === 'WAITING_STOP_APPROVAL' && (
         <Alert tone="info" className="mt-4">
-          STOP checkpoint yuborildi — Master tasdig'i kutilmoqda. Tasdiqlangunga qadar keyingi bosqichlar yopiq.
+          {t('jb.checklist.stopSubmittedInfo')}
         </Alert>
       )}
       {job.status === 'REJECTED' && (
         <Alert tone="error" className="mt-4">
-          STOP rad etilgan — jarayon bloklangan. Tuzatishni boshlab, bosqichni qayta bajarib Master tasdig'iga yuboring.
+          {t('jb.checklist.stopRejectedInfo')}
         </Alert>
       )}
 
@@ -126,7 +129,7 @@ export function ChecklistSection({ job }: { job: Job }) {
 
       {canExecute && checklist.currentStepId !== null && job.status === 'DRAFT' && (
         <Alert tone="info" className="mt-4">
-          Bosqichlarni bajarish uchun avval ishni boshlang ("Ishni boshlash" tugmasi).
+          {t('jb.checklist.startFirst')}
         </Alert>
       )}
     </div>
@@ -134,6 +137,7 @@ export function ChecklistSection({ job }: { job: Job }) {
 }
 
 function AssignChecklistCard({ jobId }: { jobId: number }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [templateId, setTemplateId] = useState('');
   const templatesQuery = useQuery({ queryKey: ['templates', 'assignable'], queryFn: fetchAssignableTemplates });
@@ -141,40 +145,38 @@ function AssignChecklistCard({ jobId }: { jobId: number }) {
   const assignMutation = useMutation({
     mutationFn: () => jobsApi.assignChecklist(jobId, Number(templateId)),
     onSuccess: () => {
-      toast.success('Checklist biriktirildi');
+      toast.success(t('jb.assign.assignedToast'));
       queryClient.invalidateQueries({ queryKey: ['jobs', 'detail', jobId, 'checklist'] });
     },
-    onError: (err) => toast.error(getApiError(err).message),
+    onError: (err) => toast.error(localizeApiError(getApiError(err).code, t)),
   });
 
   return (
     <div className="rounded-3xl border border-[var(--border-1)] bg-[var(--surface)] p-5">
-      <p className="font-bold text-[var(--text-1)]">Checklist biriktirish</p>
-      <p className="mt-1 text-sm text-[var(--text-2)]">
-        Ish uchun tekshiruv ro'yxatini tanlang — joriy faol versiya qo'llanadi va ish davomida o'zgarmaydi.
-      </p>
+      <p className="font-bold text-[var(--text-1)]">{t('jb.assign.title')}</p>
+      <p className="mt-1 text-sm text-[var(--text-2)]">{t('jb.assign.desc')}</p>
 
       {templatesQuery.isError && (
         <Alert tone="error" className="mt-3">
-          {getApiError(templatesQuery.error).message}
+          {localizeApiError(getApiError(templatesQuery.error).code, t)}
         </Alert>
       )}
 
       {templatesQuery.data?.length === 0 && (
         <Alert tone="info" className="mt-3">
-          Hozircha faol shablonlar yo'q — administrator shablon nashr qilishi kerak.
+          {t('jb.assign.noTemplates')}
         </Alert>
       )}
 
       {(templatesQuery.data?.length ?? 0) > 0 && (
         <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-          <Select value={templateId} onChange={(e) => setTemplateId(e.target.value)} aria-label="Shablon tanlash">
+          <Select value={templateId} onChange={(e) => setTemplateId(e.target.value)} aria-label={t('jb.assign.selectAria')}>
             <option value="" disabled>
-              Shablonni tanlang
+              {t('jb.assign.selectPlaceholder')}
             </option>
-            {templatesQuery.data!.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name} (v{t.version})
+            {templatesQuery.data!.map((tpl) => (
+              <option key={tpl.id} value={tpl.id}>
+                {tpl.name} (v{tpl.version})
               </option>
             ))}
           </Select>
@@ -184,7 +186,7 @@ function AssignChecklistCard({ jobId }: { jobId: number }) {
             loading={assignMutation.isPending}
             className="shrink-0"
           >
-            Biriktirish
+            {t('jb.assign.submit')}
           </Button>
         </div>
       )}
@@ -198,6 +200,8 @@ interface MeasurementFormValues {
 }
 
 function StepCard({ job, step, interactive }: { job: Job; step: JobStep; interactive: boolean }) {
+  const t = useT();
+  const fmtDt = useDateTime();
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -218,13 +222,17 @@ function StepCard({ job, step, interactive }: { job: Job; step: JobStep; interac
           .map((m) => ({ measurementId: m.id, value: Number(v.values[String(m.id)]) })),
       }),
     onSuccess: () => {
-      toast.success(step.isStop ? `"${step.name}" Master tasdig'iga yuborildi` : `"${step.name}" bajarildi`);
+      toast.success(
+        step.isStop
+          ? t('jb.step.sentToMasterToast', { name: step.name })
+          : t('jb.step.doneToast', { name: step.name }),
+      );
       setServerError(null);
       invalidate();
     },
     onError: (err) => {
       const e = getApiError(err);
-      setServerError(e.details?.length ? e.details.map((d) => d.message).join(' · ') : e.message);
+      setServerError(e.details?.length ? e.details.map((d) => d.message).join(' · ') : localizeApiError(e.code, t));
     },
   });
 
@@ -279,31 +287,35 @@ function StepCard({ job, step, interactive }: { job: Job; step: JobStep; interac
           {waiting && (
             <p className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-bold text-amber-700">
               <Hourglass className="size-3" />
-              STOP — Tasdiq kutilmoqda
+              {t('jb.step.waitingApproval')}
             </p>
           )}
           {step.status === 'APPROVED' && (
             <p className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
               <ShieldCheck className="size-3" />
-              STOP tasdiqlangan{step.stopApproval?.decidedByName ? ` — ${step.stopApproval.decidedByName}` : ''}
+              {t('jb.step.stopApproved')}{step.stopApproval?.decidedByName ? ` — ${step.stopApproval.decidedByName}` : ''}
             </p>
           )}
           {rejected && (
             <div className="mt-1 space-y-1">
               <p className="inline-flex items-center gap-1.5 rounded-full bg-brand-500/15 px-2.5 py-0.5 text-xs font-bold text-brand-700">
                 <X className="size-3" />
-                STOP rad etilgan{step.stopApproval?.decidedByName ? ` — ${step.stopApproval.decidedByName}` : ''}
-                {step.stopApproval && step.stopApproval.attempt > 1 ? ` (${step.stopApproval.attempt}-urinish)` : ''}
+                {t('jb.step.stopRejected')}{step.stopApproval?.decidedByName ? ` — ${step.stopApproval.decidedByName}` : ''}
+                {step.stopApproval && step.stopApproval.attempt > 1
+                  ? ` (${t('jb.step.attemptN', { n: step.stopApproval.attempt })})`
+                  : ''}
               </p>
               {step.stopApproval?.rejectReason && (
-                <p className="text-sm font-medium text-brand-700">Sabab: {step.stopApproval.rejectReason}</p>
+                <p className="text-sm font-medium text-brand-700">
+                  {t('jb.reasonLine', { reason: step.stopApproval.rejectReason })}
+                </p>
               )}
             </div>
           )}
 
           {step.description && <p className="mt-0.5 text-sm text-[var(--text-2)]">{step.description}</p>}
           {step.requirements && step.isCurrent && step.status === 'PENDING' && (
-            <p className="mt-1 text-sm text-[var(--text-2)]">Talablar: {step.requirements}</p>
+            <p className="mt-1 text-sm text-[var(--text-2)]">{t('jb.step.requirements', { req: step.requirements })}</p>
           )}
 
           {/* Submitted result (kept for waiting/approved/rejected/completed) */}
@@ -317,14 +329,14 @@ function StepCard({ job, step, interactive }: { job: Job; step: JobStep; interac
                     {m.name}: <b className="text-[var(--text-1)]">{m.submittedValue} {m.unit}</b>
                     {m.minValue != null || m.maxValue != null ? (
                       <span className="text-xs">
-                        (norma: {m.minValue ?? '−∞'}–{m.maxValue ?? '+∞'} {m.unit})
+                        {t('jb.step.normParen', { min: m.minValue ?? '−∞', max: m.maxValue ?? '+∞', unit: m.unit })}
                       </span>
                     ) : null}
                   </p>
                 ))}
-              {step.note && <p>Izoh: {step.note}</p>}
+              {step.note && <p>{t('jb.step.noteLine', { note: step.note })}</p>}
               <p className="text-xs">
-                {step.completedByName} · {step.completedAt ? new Date(step.completedAt).toLocaleString('uz-UZ') : ''}
+                {step.completedByName} · {step.completedAt ? fmtDt(step.completedAt) : ''}
               </p>
             </div>
           )}
@@ -348,8 +360,7 @@ function StepCard({ job, step, interactive }: { job: Job; step: JobStep; interac
 
               {step.isStop && (
                 <Alert tone="info">
-                  Bu STOP checkpoint: bajarilgach Master tasdig'iga yuboriladi va tasdiqlanmaguncha keyingi bosqichlar
-                  ochilmaydi.
+                  {t('jb.step.stopInfo')}
                 </Alert>
               )}
 
@@ -358,9 +369,9 @@ function StepCard({ job, step, interactive }: { job: Job; step: JobStep; interac
               {step.measurements.map((m) => (
                 <Input
                   key={m.id}
-                  label={`${m.name}${m.required ? '' : ' (ixtiyoriy)'} — ${
+                  label={`${m.name}${m.required ? '' : ` ${t('jb.optionalSuffix')}`} — ${
                     m.minValue != null || m.maxValue != null
-                      ? `norma: ${m.minValue ?? '−∞'}–${m.maxValue ?? '+∞'} ${m.unit}`
+                      ? t('jb.step.normRange', { min: m.minValue ?? '−∞', max: m.maxValue ?? '+∞', unit: m.unit })
                       : m.unit
                   }`}
                   inputMode="decimal"
@@ -370,12 +381,15 @@ function StepCard({ job, step, interactive }: { job: Job; step: JobStep; interac
                 />
               ))}
 
-              <Input label="Izoh (ixtiyoriy)" placeholder="Qo'shimcha izoh" {...register('note')} />
+              <Input label={t('jb.noteOptional')} placeholder={t('jb.step.notePlaceholder')} {...register('note')} />
 
               {step.photoProgress.need > 0 && step.photoProgress.have < step.photoProgress.need && (
                 <Alert tone="info">
-                  Bosqichni yakunlash uchun yana {step.photoProgress.need - step.photoProgress.have} ta rasm yuklash
-                  kerak ({step.photoProgress.have}/{step.photoProgress.need}).
+                  {t('jb.step.morePhotos', {
+                    n: step.photoProgress.need - step.photoProgress.have,
+                    have: step.photoProgress.have,
+                    need: step.photoProgress.need,
+                  })}
                 </Alert>
               )}
 
@@ -387,7 +401,7 @@ function StepCard({ job, step, interactive }: { job: Job; step: JobStep; interac
                 className="w-full"
               >
                 {step.isStop ? <OctagonAlert className="size-5" /> : <Check className="size-5" strokeWidth={3} />}
-                {step.isStop ? "Master tasdig'iga yuborish" : 'Bajarildi deb belgilash'}
+                {step.isStop ? t('jb.step.sendToMaster') : t('jb.step.markDone')}
               </Button>
             </form>
           )}
@@ -399,6 +413,7 @@ function StepCard({ job, step, interactive }: { job: Job; step: JobStep; interac
 
 /** Evidence gallery — photos of every attempt, labeled when reworks happened. */
 function PhotoGallery({ job, step }: { job: Job; step: JobStep }) {
+  const t = useT();
   const attempts = [...new Set(step.photos.map((p) => p.attempt))].sort((a, b) => a - b);
   const showAttemptLabels = attempts.length > 1 || (attempts[0] ?? 1) > 1;
 
@@ -407,7 +422,7 @@ function PhotoGallery({ job, step }: { job: Job; step: JobStep }) {
       {attempts.map((attempt) => (
         <div key={attempt}>
           {showAttemptLabels && (
-            <p className="mb-1 text-xs font-semibold text-[var(--text-2)]">{attempt}-urinish rasmlari</p>
+            <p className="mb-1 text-xs font-semibold text-[var(--text-2)]">{t('jb.photo.attemptPhotos', { n: attempt })}</p>
           )}
           <div className="flex flex-wrap gap-2">
             {step.photos
@@ -438,18 +453,19 @@ function PhotoGallery({ job, step }: { job: Job; step: JobStep }) {
 
 /** Camera-first uploader with live "Kerakli rasmlar: X/Y" progress. */
 function PhotoUploader({ job, step, onUploaded }: { job: Job; step: JobStep; onUploaded: () => void }) {
+  const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const uploadMutation = useMutation({
     mutationFn: (file: File) => jobsApi.uploadStepPhoto(job.id, step.id, file),
     onSuccess: () => {
       // Success only after the server confirms READY (201) — a stored, verified object.
-      toast.success('Rasm yuklandi');
+      toast.success(t('jb.upload.successToast'));
       onUploaded();
     },
     onError: (err) => {
       const { message, retryable } = getUploadError(err);
-      toast.error(message, retryable ? { description: "Fayl saqlanmadi — qaytadan yuborishingiz mumkin." } : undefined);
+      toast.error(message, retryable ? { description: t('jb.upload.retryDesc') } : undefined);
     },
   });
 
@@ -460,7 +476,7 @@ function PhotoUploader({ job, step, onUploaded }: { job: Job; step: JobStep; onU
       <div className="flex items-center justify-between gap-3">
         <p className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--text-1)]">
           <Camera className="size-4.5" />
-          Kerakli rasmlar: {step.photoProgress.have}/{step.photoProgress.need}
+          {t('jb.upload.needed', { have: step.photoProgress.have, need: step.photoProgress.need })}
           {enough && <Check className="size-4 text-emerald-600" strokeWidth={3} />}
         </p>
         <Button
@@ -470,7 +486,7 @@ function PhotoUploader({ job, step, onUploaded }: { job: Job; step: JobStep; onU
           loading={uploadMutation.isPending}
         >
           <Camera className="size-4" />
-          Rasm yuklash
+          {t('jb.upload.button')}
         </Button>
       </div>
       <input
@@ -485,27 +501,26 @@ function PhotoUploader({ job, step, onUploaded }: { job: Job; step: JobStep; onU
           e.target.value = '';
         }}
       />
-      <p className="mt-1.5 text-xs text-[var(--text-2)]">
-        JPEG/PNG/WebP, maksimum 10 MB. Rasmlar dalil sifatida saqlanadi va o'chirilmaydi.
-      </p>
+      <p className="mt-1.5 text-xs text-[var(--text-2)]">{t('jb.upload.hint')}</p>
     </div>
   );
 }
 
 /** §24: during a reopened cycle a done step may be redone as a new attempt. */
 function RedoButton({ job, step, onStarted }: { job: Job; step: JobStep; onStarted: () => void }) {
+  const t = useT();
   const { user: actor } = useAuth();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const redoMutation = useMutation({
     mutationFn: () => jobsApi.redoStep(job.id, step.id),
     onSuccess: () => {
-      toast.success(`"${step.name}" tuzatish uchun qayta ochildi`);
+      toast.success(t('jb.redo.reopenedToast', { name: step.name }));
       onStarted();
       setConfirmOpen(false);
     },
     onError: (err) => {
-      toast.error(getApiError(err).message);
+      toast.error(localizeApiError(getApiError(err).code, t));
       setConfirmOpen(false);
     },
   });
@@ -516,19 +531,17 @@ function RedoButton({ job, step, onStarted }: { job: Job; step: JobStep; onStart
     <div className="mt-2">
       <Button variant="secondary" size="md" onClick={() => setConfirmOpen(true)}>
         <Wrench className="size-4" />
-        Qayta bajarish
+        {t('jb.redo.button')}
       </Button>
       <ConfirmDialog
         open={confirmOpen}
-        title="Bosqichni qayta bajarish"
-        confirmLabel="Qayta ochish"
+        title={t('jb.redo.title')}
+        confirmLabel={t('jb.redo.confirm')}
         loading={redoMutation.isPending}
         onConfirm={() => redoMutation.mutate()}
         onCancel={() => setConfirmOpen(false)}
       >
-        «{step.name}» yangi urinish sifatida qayta ochiladi: yangi o'lchov va rasmlar talab qilinadi
-        {step.isStop ? ", STOP bo'lgani uchun yana Master tasdig'i kerak bo'ladi" : ''}. Avvalgi natijalar tarixda
-        saqlanadi.
+        {t('jb.redo.body', { name: step.name, stop: step.isStop ? t('jb.redo.stopClause') : '' })}
       </ConfirmDialog>
     </div>
   );
@@ -536,18 +549,19 @@ function RedoButton({ job, step, onStarted }: { job: Job; step: JobStep; onStart
 
 /** §3: technician re-opens a rejected STOP step for correction. */
 function ReworkButton({ job, step, onStarted }: { job: Job; step: JobStep; onStarted: () => void }) {
+  const t = useT();
   const { user: actor } = useAuth();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const reworkMutation = useMutation({
     mutationFn: () => jobsApi.reworkStop(job.id),
     onSuccess: () => {
-      toast.success('Tuzatish boshlandi — bosqichni qayta bajaring');
+      toast.success(t('jb.rework.startedToast'));
       onStarted();
       setConfirmOpen(false);
     },
     onError: (err) => {
-      toast.error(getApiError(err).message);
+      toast.error(localizeApiError(getApiError(err).code, t));
       setConfirmOpen(false);
     },
   });
@@ -558,24 +572,25 @@ function ReworkButton({ job, step, onStarted }: { job: Job; step: JobStep; onSta
     <div className="mt-3">
       <Button size="lg" onClick={() => setConfirmOpen(true)} className="w-full sm:w-auto">
         <Wrench className="size-5" />
-        Tuzatishni boshlash
+        {t('jb.rework.start')}
       </Button>
       <ConfirmDialog
         open={confirmOpen}
-        title="Tuzatishni boshlash"
-        confirmLabel="Boshlash"
+        title={t('jb.rework.start')}
+        confirmLabel={t('jb.rework.confirm')}
         loading={reworkMutation.isPending}
         onConfirm={() => reworkMutation.mutate()}
         onCancel={() => setConfirmOpen(false)}
       >
-        «{step.name}» bosqichi qayta ochiladi: ishni tuzatib, yangi rasmlar bilan qayta yuborasiz. Yangi yuborish ham
-        Master tasdig'ini talab qiladi. Avvalgi urinish natijalari tarixda saqlanib qoladi.
+        {t('jb.rework.body', { name: step.name })}
       </ConfirmDialog>
     </div>
   );
 }
 
 function StopDecisionPanel({ job, step, onDecided }: { job: Job; step: JobStep; onDecided: () => void }) {
+  const t = useT();
+  const fmtDt = useDateTime();
   const { user: actor } = useAuth();
   const [approveOpen, setApproveOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
@@ -584,12 +599,12 @@ function StopDecisionPanel({ job, step, onDecided }: { job: Job; step: JobStep; 
   const approveMutation = useMutation({
     mutationFn: () => jobsApi.approveStop(job.id),
     onSuccess: () => {
-      toast.success('STOP tasdiqlandi — ish davom etishi mumkin');
+      toast.success(t('jb.stop.approvedToast'));
       onDecided();
       setApproveOpen(false);
     },
     onError: (err) => {
-      toast.error(getApiError(err).message);
+      toast.error(localizeApiError(getApiError(err).code, t));
       setApproveOpen(false);
     },
   });
@@ -597,12 +612,12 @@ function StopDecisionPanel({ job, step, onDecided }: { job: Job; step: JobStep; 
   const rejectMutation = useMutation({
     mutationFn: () => jobsApi.rejectStop(job.id, rejectReason.trim()),
     onSuccess: () => {
-      toast.success('STOP rad etildi');
+      toast.success(t('jb.stop.rejectedToast'));
       onDecided();
       setRejectOpen(false);
     },
     onError: (err) => {
-      toast.error(getApiError(err).message);
+      toast.error(localizeApiError(getApiError(err).code, t));
       setRejectOpen(false);
     },
   });
@@ -610,64 +625,65 @@ function StopDecisionPanel({ job, step, onDecided }: { job: Job; step: JobStep; 
   if (!can(actor, 'stops.approve')) {
     return (
       <p className="mt-3 text-sm text-[var(--text-2)]">
-        Master tasdig'i talab qilinadi — {step.stopApproval?.submittedByName ?? 'usta'} tomonidan yuborilgan.
+        {t('jb.stop.masterRequired', { name: step.stopApproval?.submittedByName ?? t('jb.stop.tech') })}
       </p>
     );
   }
 
   return (
     <div className="mt-3 rounded-2xl border border-amber-500/30 bg-[var(--surface)] p-4">
-      <p className="font-semibold text-[var(--text-1)]">Master qarori talab qilinadi</p>
+      <p className="font-semibold text-[var(--text-1)]">{t('jb.stop.decisionRequired')}</p>
       <p className="mt-0.5 text-sm text-[var(--text-2)]">
-        {job.plateNumber} · {step.stopApproval?.submittedByName} yubordi
-        {step.stopApproval?.submittedAt ? ` · ${new Date(step.stopApproval.submittedAt).toLocaleString('uz-UZ')}` : ''}
+        {t('jb.stop.submittedBy', { plate: job.plateNumber, name: step.stopApproval?.submittedByName ?? '' })}
+        {step.stopApproval?.submittedAt ? ` · ${fmtDt(step.stopApproval.submittedAt)}` : ''}
       </p>
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">
         <Button size="lg" onClick={() => setApproveOpen(true)} className="flex-1">
           <ShieldCheck className="size-5" />
-          STOPni tasdiqlash
+          {t('jb.stop.approveButton')}
         </Button>
         <Button size="lg" variant="danger-outline" onClick={() => setRejectOpen(true)} className="flex-1">
           <X className="size-5" strokeWidth={3} />
-          Rad etish
+          {t('jb.stop.rejectButton')}
         </Button>
       </div>
 
       <ConfirmDialog
         open={approveOpen}
-        title="STOPni tasdiqlash"
-        confirmLabel="Tasdiqlash"
+        title={t('jb.stop.approveButton')}
+        confirmLabel={t('common.confirm')}
         loading={approveMutation.isPending}
         onConfirm={() => approveMutation.mutate()}
         onCancel={() => setApproveOpen(false)}
       >
-        «{step.name}» STOP checkpointi tasdiqlanadi va ish davom etishi mumkin bo'ladi. Qaror audit jurnaliga yoziladi.
+        {t('jb.stop.approveBody', { name: step.name })}
       </ConfirmDialog>
 
       <Modal
         open={rejectOpen}
         onClose={rejectMutation.isPending ? () => {} : () => setRejectOpen(false)}
-        title="STOPni rad etish"
+        title={t('jb.stop.rejectTitle')}
         className="sm:max-w-md"
       >
         <p className="text-sm text-[var(--text-2)]">
-          «{step.name}» rad etiladi: ish <b className="text-brand-600">Rad etilgan</b> holatiga o'tadi va jarayon
-          bloklanadi. Sabab majburiy.
+          {t('jb.stop.rejectBodyBefore', { name: step.name })}
+          <b className="text-brand-600">{t('jb.stop.rejectedState')}</b>
+          {t('jb.stop.rejectBodyAfter')}
         </p>
         <label className="mt-4 block">
-          <span className="mb-1.5 block text-[13px] font-medium text-[var(--text-2)]">Rad etish sababi (majburiy)</span>
+          <span className="mb-1.5 block text-[13px] font-medium text-[var(--text-2)]">{t('jb.stop.rejectReasonLabel')}</span>
           <textarea
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
             rows={2}
             maxLength={500}
-            placeholder="Masalan: ish bosimi talabga mos emas, qayta sozlash kerak"
+            placeholder={t('jb.stop.rejectReasonPlaceholder')}
             className="w-full rounded-xl border border-[var(--field-border)] bg-[var(--field-bg)] px-3.5 py-2.5 text-sm text-[var(--text-1)] outline-none transition-colors placeholder:text-[var(--field-placeholder)] focus:border-brand-500/70 focus:ring-2 focus:ring-brand-500/25"
           />
         </label>
         <div className="mt-4 flex justify-end gap-3">
           <Button variant="ghost" onClick={() => setRejectOpen(false)} disabled={rejectMutation.isPending}>
-            Ortga
+            {t('jb.stop.back')}
           </Button>
           <Button
             variant="danger-outline"
@@ -675,7 +691,7 @@ function StopDecisionPanel({ job, step, onDecided }: { job: Job; step: JobStep; 
             loading={rejectMutation.isPending}
             disabled={rejectReason.trim().length < 3}
           >
-            Rad etishni tasdiqlash
+            {t('jb.stop.rejectConfirm')}
           </Button>
         </div>
       </Modal>

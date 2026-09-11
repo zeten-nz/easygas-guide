@@ -4,6 +4,7 @@ import { ShieldAlert } from 'lucide-react';
 import { getRiskPolicyState } from '../../api/safety.api';
 import { useAuth } from '../auth/auth-context';
 import { can } from '../../lib/permissions';
+import { useT } from '../../i18n/i18n';
 
 /**
  * Phase 10D: a persistent warning for approvers (SIFAT/ADMIN) when no risk
@@ -12,6 +13,7 @@ import { can } from '../../lib/permissions';
  */
 export function RiskPolicyBanner() {
   const { user } = useAuth();
+  const t = useT();
   const mayApprove = can(user, 'risk.matrix.approve');
   const query = useQuery({ queryKey: ['risk-policy', 'state'], queryFn: getRiskPolicyState, enabled: mayApprove, staleTime: 60_000 });
 
@@ -22,9 +24,9 @@ export function RiskPolicyBanner() {
       <div className="mx-auto flex max-w-5xl items-center gap-2">
         <ShieldAlert className="size-4 shrink-0" aria-hidden />
         <span>
-          Faol tasdiqlangan xavf siyosati yo'q — xavfsizlik amaliyotlari to'xtatilgan.{' '}
+          {t('m.riskBanner.message')}{' '}
           <Link to="/app/admin/risk-policy" className="font-semibold underline">
-            Tasdiqlash
+            {t('m.riskBanner.approve')}
           </Link>
         </span>
       </div>

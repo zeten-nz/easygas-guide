@@ -1,4 +1,7 @@
-import { JOB_STATUS_LABELS, type JobStatus } from '../../types/entities';
+import { type JobStatus } from '../../types/entities';
+import { useT } from '../../i18n/i18n';
+import type { TFunc } from '../../i18n/i18n';
+import type { MessageKey } from '../../i18n/types';
 import { cn } from '../../lib/utils';
 
 const STATUS_CLASSES: Record<JobStatus, string> = {
@@ -12,10 +15,18 @@ const STATUS_CLASSES: Record<JobStatus, string> = {
   CANCELLED: 'bg-ink-500/15 text-ink-500',
 };
 
+/** Localized DISPLAY label for a stable job status code (code itself never changes).
+ *  Small helper colocated with the badge; not a fast-refresh boundary. */
+// eslint-disable-next-line react-refresh/only-export-components
+export function jobStatusLabel(status: JobStatus, t: TFunc): string {
+  return t(`ja.status.${status}` as MessageKey);
+}
+
 export function JobStatusBadge({ status, className }: { status: JobStatus; className?: string }) {
+  const t = useT();
   return (
     <span className={cn('rounded-full px-3 py-1 text-xs font-semibold', STATUS_CLASSES[status], className)}>
-      {JOB_STATUS_LABELS[status]}
+      {jobStatusLabel(status, t)}
     </span>
   );
 }

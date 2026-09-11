@@ -1,12 +1,12 @@
-import type { Messages } from '../types';
+import { uz } from './uz';
 
 /**
- * Russian (Cyrillic). Typed as `Messages` (= Record<keyof typeof uz, string>), so
- * a missing or extra key is a compile-time error — this guarantees key parity with
- * the Uzbek source-of-truth. Brand lines ("EASY GAS", "Safety Technology") are
- * kept verbatim as brand identity.
+ * Russian (Cyrillic) CORE fragment. Typed against the CORE Uzbek keys only
+ * (`Record<keyof typeof uz, string>`) so this file needs exactly the core keys —
+ * module fragments live under ./modules. Global uz⇄ru parity across all fragments
+ * is asserted in ./index.ts. Brand lines are kept verbatim.
  */
-export const ru: Messages = {
+export const ru: Record<keyof typeof uz, string> = {
   // ---- Common / shared actions ---------------------------------------------
   'common.appName': 'EASY GAS',
   'common.brandTagline': 'Safety Technology',
@@ -158,6 +158,13 @@ export const ru: Messages = {
   'account.profile': 'Мой профиль',
   'account.logout': 'Выйти',
 
+  // ---- Role display labels (codes are stable; only labels localize) ---------
+  'role.USTA': 'Мастер сервиса',
+  'role.MASTER': 'Старший мастер',
+  'role.RAHBAR': 'Руководитель сервиса',
+  'role.SIFAT': 'Контроль качества',
+  'role.ADMIN': 'Администратор',
+
   // ---- Home (workspace landing) ---------------------------------------------
   'home.welcome': 'Добро пожаловать, {name}',
   'home.empty': 'Чтобы начать работу, выберите раздел в меню выше.',
@@ -189,5 +196,19 @@ export const ru: Messages = {
   'error.TOO_MANY_REQUESTS': 'Слишком много попыток. Повторите чуть позже.',
   'error.NETWORK_ERROR': 'Нет связи с сервером. Проверьте интернет.',
   'error.NOT_FOUND': 'Не найдено',
+  'error.FORBIDDEN': 'У вас нет прав на это действие',
+  'error.DUPLICATE': 'Такая запись уже существует',
+  'error.CONFLICT_RETRY': 'Данные изменились. Повторите попытку.',
+  'error.STEP_STATE_CHANGED': 'Состояние шага изменилось. Обновите страницу.',
+  'error.JOB_STATE_CHANGED': 'Состояние работы изменилось. Обновите страницу.',
+  'error.STORAGE_UNAVAILABLE': 'Хранилище файлов временно недоступно. Повторите попытку.',
+  'error.CRITICAL_RISK_UNRESOLVED': 'Критический риск не устранён',
+  'error.REQUIRED_PHOTOS_MISSING': 'Не загружены обязательные фото',
+  'error.CUSTOMER_SIGNATURE_REQUIRED': 'Требуется подпись клиента',
+  'error.CHECKLIST_INCOMPLETE': 'Чек-лист заполнен не полностью',
+  'error.STOP_APPROVAL_PENDING': 'Ожидается подтверждение STOP',
+  'error.STOP_REJECTED': 'STOP отклонён',
+  'error.RISK_POLICY_NOT_APPROVED': 'Политика рисков не утверждена',
+  'error.TEMPLATE_HAS_HISTORY': 'Опубликованный шаблон нельзя удалить',
   'error.fallback': 'Произошла непредвиденная ошибка. Повторите попытку.',
 };

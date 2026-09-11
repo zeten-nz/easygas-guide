@@ -8,6 +8,8 @@
  * an injected geolocation object so it is unit-testable.
  */
 
+import type { MessageKey } from '../../i18n/types';
+
 export type GpsErrorKind = 'UNSUPPORTED' | 'PERMISSION_DENIED' | 'UNAVAILABLE' | 'TIMEOUT';
 
 export class GpsError extends Error {
@@ -42,6 +44,24 @@ export function gpsErrorMessage(kind: GpsErrorKind): string {
     case 'UNAVAILABLE':
     default:
       return "Joylashuvni aniqlab bo'lmadi. Qayta urinib ko'ring.";
+  }
+}
+
+/**
+ * i18n message KEY for each GPS failure — for locale-aware callers that render
+ * via `t()` instead of the Uzbek-only `gpsErrorMessage` above.
+ */
+export function gpsErrorMessageKey(kind: GpsErrorKind): MessageKey {
+  switch (kind) {
+    case 'UNSUPPORTED':
+      return 'jb.gps.unsupported';
+    case 'PERMISSION_DENIED':
+      return 'jb.gps.permissionDenied';
+    case 'TIMEOUT':
+      return 'jb.gps.timeout';
+    case 'UNAVAILABLE':
+    default:
+      return 'jb.gps.unavailable';
   }
 }
 

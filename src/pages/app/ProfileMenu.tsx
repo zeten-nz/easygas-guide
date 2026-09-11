@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronDown, LogOut, UserRound } from 'lucide-react';
 import { DropdownMenu, MenuItem } from '../../components/ui/DropdownMenu';
 import { useAuth } from '../../features/auth/auth-context';
-import { ROLE_LABELS } from '../../types/auth';
 import { displayPhone } from '../../lib/phone';
 import { useT } from '../../i18n/i18n';
+import { roleLabel } from '../../i18n/labels';
 
 /**
  * Top-right account menu: the current user's identity, a link to their own
@@ -45,7 +45,7 @@ export function ProfileMenu() {
             <span className="block text-sm font-semibold text-[var(--text-1)]">
               {user.firstName} {user.lastName}
             </span>
-            <span className="block text-xs text-[var(--text-2)]">{ROLE_LABELS[user.role]}</span>
+            <span className="block text-xs text-[var(--text-2)]">{roleLabel(user.role, t)}</span>
           </span>
           <ChevronDown className="hidden size-4 text-[var(--text-3)] sm:block" />
         </button>
@@ -58,7 +58,7 @@ export function ProfileMenu() {
               {user.firstName} {user.lastName}
             </p>
             <p className="text-xs text-[var(--text-2)]">
-              {ROLE_LABELS[user.role]} · {displayPhone(user.phone)}
+              {roleLabel(user.role, t)} · {displayPhone(user.phone)}
             </p>
           </div>
           <div className="pt-1.5">

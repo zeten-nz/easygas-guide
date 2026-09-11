@@ -8,6 +8,8 @@ import { GpsCaptureButton } from '../../features/safety/GpsCaptureButton';
 import { useAuth } from '../../features/auth/auth-context';
 import { can } from '../../lib/permissions';
 import { getApiError } from '../../api/client';
+import { useT } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
 import * as safety from '../../api/safety.api';
 import * as jobsApi from '../../api/jobs.api';
 import type { GpsReading } from '../../features/safety/gps';
@@ -33,6 +35,7 @@ export function StartJobModal({
   onClose: () => void;
   onStarted: () => void;
 }) {
+  const t = useT();
   const { user: actor } = useAuth();
   const mayOverride = can(actor, 'gps.override');
   const [gpsState, setGpsState] = useState<'none' | 'captured' | 'overridden'>('none');
@@ -50,11 +53,10 @@ export function StartJobModal({
       }),
     onSuccess: () => {
       setGpsState('captured');
-      toast.success('GPS qayd etildi');
+      toast.success(t('jb.start.gpsCapturedToast'));
     },
     onError: (err) => {
-      const e = getApiError(err);
-      toast.error(e.details?.length ? `${e.message}: ${e.details.map((d) => d.message).join(', ')}` : e.message);
+      toast.error(localizeApiError(getApiError(err).code, t));
     },
   });
 
@@ -63,19 +65,19 @@ export function StartJobModal({
     onSuccess: () => {
       setGpsState('overridden');
       setOverrideOpen(false);
-      toast.success('GPS override qayd etildi');
+      toast.success(t('jb.start.gpsOverrideToast'));
     },
-    onError: (err) => toast.error(getApiError(err).message),
+    onError: (err) => toast.error(localizeApiError(getApiError(err).code, t)),
   });
 
   const startMutation = useMutation({
     mutationFn: () => jobsApi.startJob(jobId),
     onSuccess: () => {
-      toast.success('Ish boshlandi');
+      toast.success(t('jb.start.startedToast'));
       onStarted();
       reset();
     },
-    onError: (err) => toast.error(getApiError(err).message),
+    onError: (err) => toast.error(localizeApiError(getApiError(err).code, t)),
   });
 
   const reset = () => {
@@ -90,24 +92,23 @@ export function StartJobModal({
     <Modal
       open={open}
       onClose={busy ? () => {} : () => { onClose(); reset(); }}
-      title="Ishni boshlash"
+      title={t('jb.start.title')}
       className="sm:max-w-md"
     >
       <p className="text-sm text-[var(--text-2)]">
-        <b className="text-[var(--text-1)]">#{jobId}</b> — {plateNumber} bo'yicha ish boshlanadi. Holat "Jarayonda" ga
-        o'tadi.
+        <b className="text-[var(--text-1)]">#{jobId}</b> {t('jb.start.intro', { plate: plateNumber })}
       </p>
 
       <div className="mt-4 rounded-2xl border border-[var(--border-1)] bg-[var(--surface-2)] p-3.5">
         {gpsState === 'captured' ? (
           <p className="flex items-center gap-2 text-sm font-medium text-[var(--success-fg)]">
             <CheckCircle2 className="size-4.5" aria-hidden />
-            O'rnatish joyi qayd etildi.
+            {t('jb.start.gpsCaptured')}
           </p>
         ) : gpsState === 'overridden' ? (
           <p className="flex items-center gap-2 text-sm font-medium text-[var(--warning-fg)]">
             <MapPinOff className="size-4.5" aria-hidden />
-            GPS override qayd etildi.
+            {t('jb.start.gpsOverridden')}
           </p>
         ) : (
           <>
@@ -118,7 +119,7 @@ export function StartJobModal({
                 onClick={() => setOverrideOpen(true)}
                 className="mt-2 text-xs font-medium text-[var(--text-2)] underline hover:text-[var(--text-1)]"
               >
-                GPS mavjud emas — override qayd etish
+                {t('jb.start.overrideOpen')}
               </button>
             )}
             {mayOverride && overrideOpen && (
@@ -128,7 +129,7 @@ export function StartJobModal({
                   onChange={(e) => setOverrideReason(e.target.value)}
                   rows={2}
                   maxLength={500}
-                  placeholder="Override sababi (majburiy)"
+                  placeholder={t('jb.overrideReason')}
                   className="w-full rounded-xl border border-[var(--field-border)] bg-[var(--field-bg)] px-3 py-2 text-sm text-[var(--text-1)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/25"
                 />
                 <Button
@@ -138,7 +139,7 @@ export function StartJobModal({
                   loading={overrideMutation.isPending}
                   disabled={overrideReason.trim().length < 3}
                 >
-                  Override saqlash
+                  {t('jb.start.overrideSave')}
                 </Button>
               </div>
             )}
@@ -148,10 +149,10 @@ export function StartJobModal({
 
       <div className="mt-4 flex justify-end gap-3">
         <Button variant="ghost" onClick={() => { onClose(); reset(); }} disabled={busy}>
-          Bekor qilish
+          {t('common.cancel')}
         </Button>
         <Button onClick={() => startMutation.mutate()} loading={startMutation.isPending}>
-          Ishni boshlash
+          {t('jb.start.title')}
         </Button>
       </div>
     </Modal>

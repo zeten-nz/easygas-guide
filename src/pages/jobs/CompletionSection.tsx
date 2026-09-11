@@ -12,22 +12,27 @@ import { useAuth } from '../../features/auth/auth-context';
 import * as jobsApi from '../../api/jobs.api';
 import * as safety from '../../api/safety.api';
 import { getApiError, getUploadError } from '../../api/client';
+import { useT, useDateTime } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
 import { can } from '../../lib/permissions';
 import { isReSignRequired } from '../../features/safety/completion-blockers';
 import type { Job } from '../../types/entities';
+import type { MessageKey } from '../../i18n/types';
 import { cn } from '../../lib/utils';
 
-const CONDITION_LABELS: { key: keyof jobsApi.CompletionInfo['readiness']['conditions']; label: string }[] = [
-  { key: 'checklist', label: 'Checklist bosqichlari bajarildi' },
-  { key: 'stops', label: 'Barcha STOP checkpointlar tasdiqlangan' },
-  { key: 'measurements', label: "O'lchovlar talab doirasida" },
-  { key: 'photos', label: 'Kerakli foto dalillar mavjud' },
-  { key: 'risks', label: "Hal qilinmagan bloklaydigan xavf yo'q" },
-  { key: 'signature', label: 'Mijoz imzosi olingan' },
+const CONDITION_LABELS: { key: keyof jobsApi.CompletionInfo['readiness']['conditions']; labelKey: MessageKey }[] = [
+  { key: 'checklist', labelKey: 'jb.cond.checklist' },
+  { key: 'stops', labelKey: 'jb.cond.stops' },
+  { key: 'measurements', labelKey: 'jb.cond.measurements' },
+  { key: 'photos', labelKey: 'jb.cond.photos' },
+  { key: 'risks', labelKey: 'jb.cond.risks' },
+  { key: 'signature', labelKey: 'jb.cond.signature' },
 ];
 
 /** §22–23 completion workspace: readiness, signable summary, signature, close. */
 export function CompletionSection({ job }: { job: Job }) {
+  const t = useT();
+  const fmtDt = useDateTime();
   const { user: actor } = useAuth();
   const queryClient = useQueryClient();
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
@@ -43,7 +48,7 @@ export function CompletionSection({ job }: { job: Job }) {
   const closeMutation = useMutation({
     mutationFn: () => jobsApi.completeJob(job.id),
     onSuccess: () => {
-      toast.success('Ish muvaffaqiyatli yakunlandi');
+      toast.success(t('jb.completion.closedToast'));
       invalidate();
       setCloseConfirmOpen(false);
     },
@@ -51,10 +56,10 @@ export function CompletionSection({ job }: { job: Job }) {
       const e = getApiError(err);
       if (isReSignRequired(e.code)) {
         // §23: the accepted work summary went stale — force a fresh signature.
-        toast.error('Ish tafsiloti o\'zgardi — mijoz qayta imzolashi kerak');
+        toast.error(t('jb.completion.reSignToast'));
         queryClient.invalidateQueries({ queryKey: ['jobs', 'detail', job.id, 'signable-summary'] });
       } else {
-        toast.error(e.details?.length ? e.details.map((d) => d.message).join(' · ') : e.message);
+        toast.error(e.details?.length ? e.details.map((d) => d.message).join(' · ') : localizeApiError(e.code, t));
       }
       setCloseConfirmOpen(false);
       invalidate();
@@ -66,23 +71,23 @@ export function CompletionSection({ job }: { job: Job }) {
       <div className="rounded-3xl border border-emerald-500/30 bg-emerald-500/5 p-5">
         <p className="flex items-center gap-2 font-bold text-emerald-700">
           <CheckCircle2 className="size-5" />
-          Ish yakunlangan
+          {t('jb.completion.doneTitle')}
         </p>
         <p className="mt-1 text-sm text-[var(--text-2)]">
-          {job.closedByName ? `Yopdi: ${job.closedByName}` : ''}
-          {job.closedAt ? ` · ${new Date(job.closedAt).toLocaleString('uz-UZ')}` : ''}
+          {job.closedByName ? t('jb.completion.closedBy', { name: job.closedByName }) : ''}
+          {job.closedAt ? ` · ${fmtDt(job.closedAt)}` : ''}
         </p>
         {job.reopenedAt && (
           <p className="mt-1 text-xs text-[var(--text-2)]">
-            Avval qayta ochilgan: {job.reopenedByName} · sabab: {job.reopenReason}
+            {t('jb.completion.previouslyReopened', { name: job.reopenedByName ?? '', reason: job.reopenReason ?? '' })}
           </p>
         )}
         {completionQuery.data?.signature && (
           <div className="mt-3">
-            <p className="mb-1 text-xs font-semibold text-[var(--text-2)]">Mijoz imzosi</p>
+            <p className="mb-1 text-xs font-semibold text-[var(--text-2)]">{t('jb.completion.customerSignature')}</p>
             <img
               src={jobsApi.signatureUrl(job.id)}
-              alt="Mijoz imzosi"
+              alt={t('jb.completion.customerSignature')}
               className="h-24 rounded-xl border border-[var(--border-1)] bg-white object-contain p-2"
             />
           </div>
@@ -107,7 +112,11 @@ export function CompletionSection({ job }: { job: Job }) {
     );
   }
   if (completionQuery.isError || !completionQuery.data) {
-    return <Alert tone="error">{completionQuery.error ? getApiError(completionQuery.error).message : 'Xatolik'}</Alert>;
+    return (
+      <Alert tone="error">
+        {completionQuery.error ? localizeApiError(getApiError(completionQuery.error).code, t) : t('jb.completion.errorGeneric')}
+      </Alert>
+    );
   }
 
   const { readiness, signature } = completionQuery.data;
@@ -118,19 +127,18 @@ export function CompletionSection({ job }: { job: Job }) {
     <div className="rounded-3xl border border-[var(--border-1)] bg-[var(--surface)] p-5">
       <p className="flex items-center gap-2 font-bold text-[var(--text-1)]">
         <Flag className="size-4.5 text-brand-500" />
-        Ishni yakunlash
+        {t('jb.completion.finish')}
       </p>
 
       {job.status === 'REOPENED' && (
         <Alert tone="info" className="mt-3">
-          Ish sifat nazorati tomonidan qayta ochilgan ({job.reopenedByName}). Sabab: {job.reopenReason}. Tuzatishdan
-          so'ng ish sifat nazoratiga qayta yuboriladi.
+          {t('jb.completion.reopenedInfo', { name: job.reopenedByName ?? '', reason: job.reopenReason ?? '' })}
         </Alert>
       )}
 
       {/* §22 condition checklist (server-authoritative; icon + text, not colour alone) */}
       <div className="mt-3 space-y-2">
-        {CONDITION_LABELS.map(({ key, label }) => {
+        {CONDITION_LABELS.map(({ key, labelKey }) => {
           const ok = readiness.conditions[key];
           return (
             <div key={key} className="flex items-center gap-2.5 text-sm">
@@ -142,8 +150,8 @@ export function CompletionSection({ job }: { job: Job }) {
               >
                 {ok ? <Check className="size-3.5" strokeWidth={3} /> : <X className="size-3" />}
               </span>
-              <span className={ok ? 'text-[var(--text-1)]' : 'text-[var(--text-2)]'}>{label}</span>
-              <span className="ml-auto text-xs font-medium text-[var(--text-3)]">{ok ? 'OK' : 'kerak'}</span>
+              <span className={ok ? 'text-[var(--text-1)]' : 'text-[var(--text-2)]'}>{t(labelKey)}</span>
+              <span className="ml-auto text-xs font-medium text-[var(--text-3)]">{ok ? t('jb.cond.ok') : t('jb.cond.needed')}</span>
             </div>
           );
         })}
@@ -167,11 +175,11 @@ export function CompletionSection({ job }: { job: Job }) {
       {signature && (
         <div className="mt-4">
           <p className="mb-1 text-xs font-semibold text-[var(--text-2)]">
-            Mijoz imzosi · {new Date(signature.createdAt).toLocaleString('uz-UZ')}
+            {t('jb.completion.customerSignature')} · {fmtDt(signature.createdAt)}
           </p>
           <img
             src={jobsApi.signatureUrl(job.id)}
-            alt="Mijoz imzosi"
+            alt={t('jb.completion.customerSignature')}
             className="h-24 rounded-xl border border-[var(--border-1)] bg-white object-contain p-2"
           />
         </div>
@@ -181,23 +189,23 @@ export function CompletionSection({ job }: { job: Job }) {
       {can(actor, 'jobs.close') && (
         <Button size="lg" className="mt-4 w-full" disabled={!readiness.canComplete} onClick={() => setCloseConfirmOpen(true)}>
           <CheckCircle2 className="size-5" />
-          {job.status === 'REOPENED' ? 'Sifat nazoratiga yuborish' : 'Ishni yakunlash'}
+          {job.status === 'REOPENED' ? t('jb.completion.sendToQuality') : t('jb.completion.finish')}
         </Button>
       )}
 
       <ConfirmDialog
         open={closeConfirmOpen}
-        title={job.status === 'REOPENED' ? 'Sifat nazoratiga yuborish' : 'Ishni yakunlash'}
-        confirmLabel="Ha, davom etilsin"
+        title={job.status === 'REOPENED' ? t('jb.completion.sendToQuality') : t('jb.completion.finish')}
+        confirmLabel={t('jb.completion.confirmContinue')}
         loading={closeMutation.isPending}
         onConfirm={() => closeMutation.mutate()}
         onCancel={() => setCloseConfirmOpen(false)}
       >
-        <b>#{job.id}</b> — {job.plateNumber} bo'yicha{' '}
-        {job.status === 'REOPENED'
-          ? "tuzatilgan ish sifat nazoratiga yuboriladi. Sifat tasdiqlagach ish yakunlanadi."
-          : 'ish yakunlanadi.'}{' '}
-        Server barcha shartlarni qayta tekshiradi va qaror audit jurnaliga yoziladi.
+        <b>#{job.id}</b>{' '}
+        {t('jb.completion.confirmBody', {
+          plate: job.plateNumber,
+          tail: job.status === 'REOPENED' ? t('jb.completion.confirmTailReopened') : t('jb.completion.confirmTailNormal'),
+        })}
       </ConfirmDialog>
     </div>
   );
@@ -220,6 +228,7 @@ function SignatureFlow({
   needSignature: boolean;
   onSaved: () => void;
 }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const summaryQuery = useQuery({
     queryKey: ['jobs', 'detail', job.id, 'signable-summary'],
@@ -234,7 +243,11 @@ function SignatureFlow({
     );
   }
   if (summaryQuery.isError || !summaryQuery.data) {
-    return <Alert tone="error" className="mt-4">{summaryQuery.error ? getApiError(summaryQuery.error).message : 'Xulosani yuklab bo\'lmadi'}</Alert>;
+    return (
+      <Alert tone="error" className="mt-4">
+        {summaryQuery.error ? localizeApiError(getApiError(summaryQuery.error).code, t) : t('jb.completion.summaryLoadError')}
+      </Alert>
+    );
   }
 
   const summary = summaryQuery.data;
@@ -247,7 +260,7 @@ function SignatureFlow({
           jobId={job.id}
           summaryDigest={summary.digest}
           onStale={() => {
-            toast.error('Ish tafsiloti o\'zgardi — yangilangan xulosani ko\'rsatib, qayta imzolatishingiz kerak');
+            toast.error(t('jb.completion.staleReSignToast'));
             queryClient.invalidateQueries({ queryKey: ['jobs', 'detail', job.id, 'signable-summary'] });
           }}
           onSaved={onSaved}
@@ -256,7 +269,7 @@ function SignatureFlow({
       {hasSignature && (
         <p className="flex items-center gap-1.5 text-xs text-[var(--text-3)]">
           <Fingerprint className="size-3.5" aria-hidden />
-          Imzo yuqoridagi xulosa raqamli iziga bog'langan.
+          {t('jb.completion.signatureBound')}
         </p>
       )}
     </div>
@@ -269,6 +282,7 @@ function SignatureFlow({
  * snapshots existed (none stored → an explicit note, never a fabricated one).
  */
 function CompletionSnapshotView({ job }: { job: Job }) {
+  const t = useT();
   const snapshotQuery = useQuery({
     queryKey: ['jobs', 'detail', job.id, 'completion-snapshot'],
     queryFn: () => safety.getCompletionSnapshot(job.id),
@@ -279,9 +293,7 @@ function CompletionSnapshotView({ job }: { job: Job }) {
 
   if (!snapshot) {
     return (
-      <p className="mt-3 text-xs text-[var(--text-3)]">
-        Bu ish uchun muhrlangan snapshot yo'q (eski tizimda yakunlangan bo'lishi mumkin).
-      </p>
+      <p className="mt-3 text-xs text-[var(--text-3)]">{t('jb.snapshot.none')}</p>
     );
   }
 
@@ -290,26 +302,26 @@ function CompletionSnapshotView({ job }: { job: Job }) {
     <details className="mt-3 rounded-2xl border border-[var(--border-1)] bg-[var(--surface)] p-3.5">
       <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-[var(--text-1)]">
         <FileLock2 className="size-4 text-[var(--accent)]" aria-hidden />
-        Muhrlangan yakuniy snapshot (sikl #{snapshot.cycle})
+        {t('jb.snapshot.title', { cycle: snapshot.cycle })}
       </summary>
       <div className="mt-3 space-y-1.5 text-sm">
         <div className="flex justify-between gap-3">
-          <span className="text-[var(--text-2)]">Holat</span>
+          <span className="text-[var(--text-2)]">{t('jb.snapshot.status')}</span>
           <span className="font-medium text-[var(--text-1)]">{snapshot.provenance}</span>
         </div>
         <div className="flex justify-between gap-3">
-          <span className="text-[var(--text-2)]">Sxema versiyasi</span>
+          <span className="text-[var(--text-2)]">{t('jb.snapshot.schemaVersion')}</span>
           <span className="font-medium text-[var(--text-1)]">{snapshot.schemaVersion}</span>
         </div>
         {c.assignment && (
           <div className="flex justify-between gap-3">
-            <span className="text-[var(--text-2)]">Mas'ul texnik (ID)</span>
+            <span className="text-[var(--text-2)]">{t('jb.snapshot.technicianId')}</span>
             <span className="font-medium text-[var(--text-1)]">{c.assignment.technicianId ?? '—'}</span>
           </div>
         )}
         {c.signature && (
           <div className="flex justify-between gap-3">
-            <span className="text-[var(--text-2)]">Imzo bog'langan digest</span>
+            <span className="text-[var(--text-2)]">{t('jb.snapshot.signatureDigest')}</span>
             <span className="font-mono text-xs text-[var(--text-3)]">{c.signature.summaryDigest?.slice(0, 16) ?? '—'}…</span>
           </div>
         )}
@@ -317,12 +329,12 @@ function CompletionSnapshotView({ job }: { job: Job }) {
 
       {c.risks && c.risks.length > 0 && (
         <div className="mt-3">
-          <p className="text-xs font-semibold text-[var(--text-2)]">Xavflar ({c.risks.length})</p>
+          <p className="text-xs font-semibold text-[var(--text-2)]">{t('jb.snapshot.risks', { count: c.risks.length })}</p>
           <ul className="mt-1 space-y-1">
             {c.risks.map((r) => (
               <li key={r.id} className="text-xs text-[var(--text-3)]">
                 {r.level} · {r.status}
-                {r.blocking ? ' · bloklovchi' : ''} · matritsa {r.matrixVersion}
+                {r.blocking ? ` · ${t('jb.snapshot.blocking')}` : ''} · {t('jb.snapshot.matrix', { v: r.matrixVersion })}
               </li>
             ))}
           </ul>
@@ -332,7 +344,7 @@ function CompletionSnapshotView({ job }: { job: Job }) {
       <div className="mt-3 flex items-start gap-2 border-t border-[var(--border-1)] pt-3">
         <Fingerprint className="mt-0.5 size-4 shrink-0 text-[var(--text-3)]" aria-hidden />
         <div className="min-w-0">
-          <p className="text-xs font-medium text-[var(--text-2)]">Snapshot digesti (o'zgarmas)</p>
+          <p className="text-xs font-medium text-[var(--text-2)]">{t('jb.snapshot.digest')}</p>
           <p className="break-all font-mono text-[11px] text-[var(--text-3)]">{snapshot.digest}</p>
         </div>
       </div>
@@ -342,18 +354,19 @@ function CompletionSnapshotView({ job }: { job: Job }) {
 
 /** §24: quality reopens a completed job with a mandatory reason. */
 function ReopenPanel({ job, onDone }: { job: Job; onDone: () => void }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('');
 
   const reopenMutation = useMutation({
     mutationFn: () => jobsApi.reopenJob(job.id, reason.trim()),
     onSuccess: () => {
-      toast.success('Ish qayta ochildi — tuzatish jarayoni boshlandi');
+      toast.success(t('jb.reopen.doneToast'));
       onDone();
       setOpen(false);
     },
     onError: (err) => {
-      toast.error(getApiError(err).message);
+      toast.error(localizeApiError(getApiError(err).code, t));
       setOpen(false);
     },
   });
@@ -362,33 +375,31 @@ function ReopenPanel({ job, onDone }: { job: Job; onDone: () => void }) {
     <div className="mt-4">
       <Button variant="danger-outline" onClick={() => setOpen(true)}>
         <RotateCcw className="size-4" />
-        Ishni qayta ochish
+        {t('jb.reopen.button')}
       </Button>
       <Modal
         open={open}
         onClose={reopenMutation.isPending ? () => {} : () => setOpen(false)}
-        title="Ishni qayta ochish"
+        title={t('jb.reopen.button')}
         className="sm:max-w-md"
       >
         <p className="text-sm text-[var(--text-2)]">
-          <b className="text-[var(--text-1)]">#{job.id}</b> — {job.plateNumber} bo'yicha yakunlangan ish qayta ochiladi
-          va tuzatish ishlariga qaytadi. Asl yakunlash, imzo va barcha tarixiy ma'lumotlar saqlanib qoladi. Sabab
-          majburiy.
+          <b className="text-[var(--text-1)]">#{job.id}</b> {t('jb.reopen.body', { plate: job.plateNumber })}
         </p>
         <label className="mt-4 block">
-          <span className="mb-1.5 block text-[13px] font-medium text-[var(--text-2)]">Qayta ochish sababi (majburiy)</span>
+          <span className="mb-1.5 block text-[13px] font-medium text-[var(--text-2)]">{t('jb.reopen.reasonLabel')}</span>
           <textarea
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             rows={2}
             maxLength={500}
-            placeholder="Masalan: reduktor sozlamasi talabga mos emas"
+            placeholder={t('jb.reopen.reasonPlaceholder')}
             className="w-full rounded-xl border border-[var(--field-border)] bg-[var(--field-bg)] px-3.5 py-2.5 text-sm text-[var(--text-1)] outline-none transition-colors placeholder:text-[var(--field-placeholder)] focus:border-brand-500/70 focus:ring-2 focus:ring-brand-500/25"
           />
         </label>
         <div className="mt-4 flex justify-end gap-3">
           <Button variant="ghost" onClick={() => setOpen(false)} disabled={reopenMutation.isPending}>
-            Bekor qilish
+            {t('common.cancel')}
           </Button>
           <Button
             variant="danger-outline"
@@ -396,7 +407,7 @@ function ReopenPanel({ job, onDone }: { job: Job; onDone: () => void }) {
             loading={reopenMutation.isPending}
             disabled={reason.trim().length < 3}
           >
-            Qayta ochishni tasdiqlash
+            {t('jb.reopen.confirm')}
           </Button>
         </div>
       </Modal>
@@ -406,19 +417,20 @@ function ReopenPanel({ job, onDone }: { job: Job; onDone: () => void }) {
 
 /** §24: quality accepts the corrected work — the second completion. */
 function QualityReviewPanel({ job, onDone }: { job: Job; onDone: () => void }) {
+  const t = useT();
   const { user: actor } = useAuth();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const confirmMutation = useMutation({
     mutationFn: () => jobsApi.confirmQuality(job.id),
     onSuccess: () => {
-      toast.success('Sifat nazorati tasdiqlandi — ish yakunlandi');
+      toast.success(t('jb.quality.confirmedToast'));
       onDone();
       setConfirmOpen(false);
     },
     onError: (err) => {
       const e = getApiError(err);
-      toast.error(e.details?.length ? e.details.map((d) => d.message).join(' · ') : e.message);
+      toast.error(e.details?.length ? e.details.map((d) => d.message).join(' · ') : localizeApiError(e.code, t));
       setConfirmOpen(false);
     },
   });
@@ -427,28 +439,27 @@ function QualityReviewPanel({ job, onDone }: { job: Job; onDone: () => void }) {
     <div className="rounded-3xl border border-teal-500/30 bg-teal-500/5 p-5">
       <p className="flex items-center gap-2 font-bold text-teal-700">
         <ShieldCheck className="size-5" />
-        Sifat nazoratida
+        {t('jb.quality.title')}
       </p>
       <p className="mt-1 text-sm text-[var(--text-2)]">
-        Tuzatilgan ish sifat nazorati tasdig'ini kutmoqda.
-        {job.reopenReason ? ` Qayta ochish sababi: ${job.reopenReason}` : ''}
+        {t('jb.quality.awaiting')}
+        {job.reopenReason ? ` ${t('jb.quality.reopenReason', { reason: job.reopenReason })}` : ''}
       </p>
       {can(actor, 'jobs.reopen') && (
         <Button size="lg" className="mt-3 w-full sm:w-auto" onClick={() => setConfirmOpen(true)}>
           <ShieldCheck className="size-5" />
-          Sifat nazoratidan o'tkazish
+          {t('jb.quality.passButton')}
         </Button>
       )}
       <ConfirmDialog
         open={confirmOpen}
-        title="Sifat nazoratini tasdiqlash"
-        confirmLabel="Tasdiqlash — ish yakunlansin"
+        title={t('jb.quality.confirmTitle')}
+        confirmLabel={t('jb.quality.confirmLabel')}
         loading={confirmMutation.isPending}
         onConfirm={() => confirmMutation.mutate()}
         onCancel={() => setConfirmOpen(false)}
       >
-        <b>#{job.id}</b> — {job.plateNumber} bo'yicha tuzatilgan ish qabul qilinadi va yakunlanadi. Server yakunlash
-        shartlarini qayta tekshiradi.
+        <b>#{job.id}</b> {t('jb.quality.confirmBody', { plate: job.plateNumber })}
       </ConfirmDialog>
     </div>
   );
@@ -466,6 +477,7 @@ function SignaturePad({
   onStale: () => void;
   onSaved: () => void;
 }) {
+  const t = useT();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const [hasInk, setHasInk] = useState(false);
@@ -473,7 +485,7 @@ function SignaturePad({
   const uploadMutation = useMutation({
     mutationFn: (blob: Blob) => jobsApi.uploadSignature(jobId, blob, summaryDigest),
     onSuccess: () => {
-      toast.success('Mijoz imzosi saqlandi');
+      toast.success(t('jb.sign.savedToast'));
       onSaved();
     },
     onError: (err) => {
@@ -484,7 +496,7 @@ function SignaturePad({
         return;
       }
       const { message, retryable } = getUploadError(err);
-      toast.error(message, retryable ? { description: 'Imzo saqlanmadi — qaytadan urinishingiz mumkin.' } : undefined);
+      toast.error(message, retryable ? { description: t('jb.sign.retryDesc') } : undefined);
     },
   });
 
@@ -525,11 +537,9 @@ function SignaturePad({
     <div className="rounded-2xl border border-[var(--border-1)] bg-[var(--surface-2)] p-3.5">
       <p className="flex items-center gap-2 text-sm font-semibold text-[var(--text-1)]">
         <PenLine className="size-4" />
-        Mijoz tasdig'i va imzosi
+        {t('jb.sign.title')}
       </p>
-      <p className="mt-1 text-xs text-[var(--text-2)]">
-        Mijoz yuqoridagi xulosa bilan tanishib, quyida imzo qo'yadi. Imzo saqlangach o'zgartirib bo'lmaydi.
-      </p>
+      <p className="mt-1 text-xs text-[var(--text-2)]">{t('jb.sign.desc')}</p>
       <canvas
         ref={canvasRef}
         width={600}
@@ -563,11 +573,11 @@ function SignaturePad({
       <div className="mt-2 flex gap-2">
         <Button type="button" variant="ghost" onClick={clear} disabled={!hasInk || uploadMutation.isPending}>
           <Eraser className="size-4" />
-          Tozalash
+          {t('jb.sign.clear')}
         </Button>
         <Button type="button" size="lg" className="flex-1" onClick={save} disabled={!hasInk} loading={uploadMutation.isPending}>
           <Check className="size-5" strokeWidth={3} />
-          Imzoni saqlash
+          {t('jb.sign.save')}
         </Button>
       </div>
     </div>

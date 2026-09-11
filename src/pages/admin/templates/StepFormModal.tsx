@@ -10,6 +10,9 @@ import { Button } from '../../../components/ui/Button';
 import { Alert } from '../../../components/ui/Alert';
 import * as templatesApi from '../../../api/templates.api';
 import { getApiError } from '../../../api/client';
+import { useT } from '../../../i18n/i18n';
+import { localizeApiError } from '../../../i18n/api-errors';
+import { fieldError } from '../../../i18n/form';
 import type { TemplateStep } from '../../../types/entities';
 
 interface MeasurementForm {
@@ -45,6 +48,7 @@ export function StepFormModal({
   editStep: TemplateStep | null;
   onClose: () => void;
 }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
   const isEdit = !!editStep;
@@ -108,51 +112,51 @@ export function StepFormModal({
         : templatesApi.addStep(templateId, versionId, input);
     },
     onSuccess: () => {
-      toast.success(isEdit ? 'Bosqich yangilandi' : "Bosqich qo'shildi");
+      toast.success(isEdit ? t('tpl.toast.stepUpdated') : t('tpl.toast.stepAdded'));
       queryClient.invalidateQueries({ queryKey: ['templates'] });
       onClose();
     },
-    onError: (err) => setServerError(getApiError(err).message),
+    onError: (err) => setServerError(localizeApiError(getApiError(err).code, t)),
   });
 
   return (
-    <Modal open onClose={onClose} title={isEdit ? 'Bosqichni tahrirlash' : "Yangi bosqich"} className="sm:max-w-2xl">
+    <Modal open onClose={onClose} title={isEdit ? t('tpl.step.editTitle') : t('tpl.step.newTitle')} className="sm:max-w-2xl">
       <form onSubmit={handleSubmit((v) => mutation.mutate(v))} noValidate className="space-y-4">
         {serverError && <Alert tone="error">{serverError}</Alert>}
 
         <Input
-          label="Bosqich nomi"
-          placeholder="Masalan: Reduktor o'rnatish va sozlash"
-          error={errors.name?.message}
+          label={t('tpl.step.nameLabel')}
+          placeholder={t('tpl.step.namePlaceholder')}
+          error={fieldError(errors.name?.message, t)}
           {...register('name', {
-            required: 'Bosqich nomi kiritilishi shart',
-            minLength: { value: 3, message: 'Kamida 3 ta belgi' },
+            required: 'tpl.valid.stepNameRequired',
+            minLength: { value: 3, message: 'tpl.valid.min3' },
           })}
         />
 
-        <Input label="Tavsif (ixtiyoriy)" placeholder="Bosqich tavsifi" {...register('description')} />
-        <Input label="Talablar (ixtiyoriy)" placeholder="Texnik talablar" {...register('requirements')} />
+        <Input label={t('tpl.field.descriptionOptional')} placeholder={t('tpl.step.descPlaceholder')} {...register('description')} />
+        <Input label={t('tpl.step.requirementsLabel')} placeholder={t('tpl.step.requirementsPlaceholder')} {...register('requirements')} />
 
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Risk vazni (0–100)"
+            label={t('tpl.step.riskWeightLabel')}
             inputMode="numeric"
-            error={errors.riskWeight?.message}
+            error={fieldError(errors.riskWeight?.message, t)}
             {...register('riskWeight', {
               validate: (v) => {
                 const n = Number(v || 0);
-                return (Number.isInteger(n) && n >= 0 && n <= 100) || "Noto'g'ri qiymat";
+                return (Number.isInteger(n) && n >= 0 && n <= 100) || 'tpl.valid.invalidValue';
               },
             })}
           />
           <Input
-            label="Majburiy fotolar soni"
+            label={t('tpl.step.requiredPhotosLabel')}
             inputMode="numeric"
-            error={errors.requiredPhotos?.message}
+            error={fieldError(errors.requiredPhotos?.message, t)}
             {...register('requiredPhotos', {
               validate: (v) => {
                 const n = Number(v || 0);
-                return (Number.isInteger(n) && n >= 0 && n <= 20) || "Noto'g'ri qiymat";
+                return (Number.isInteger(n) && n >= 0 && n <= 20) || 'tpl.valid.invalidValue';
               },
             })}
           />
@@ -160,12 +164,12 @@ export function StepFormModal({
 
         <div className="flex items-center gap-2 rounded-xl border border-brand-500/25 bg-brand-500/5 p-3">
           <OctagonAlert className="size-4 shrink-0 text-brand-500" />
-          <Checkbox label="STOP checkpoint (Master tasdig'i talab qilinadi — keyingi bosqichda faollashadi)" {...register('isStop')} />
+          <Checkbox label={t('tpl.step.stopLabel')} {...register('isStop')} />
         </div>
 
         <div>
           <div className="flex items-center justify-between">
-            <p className="text-[13px] font-medium text-[var(--text-2)]">O'lchovlar (§16 — min/max chegaralari bilan)</p>
+            <p className="text-[13px] font-medium text-[var(--text-2)]">{t('tpl.step.measurementsHeading')}</p>
             <Button
               type="button"
               variant="secondary"
@@ -173,7 +177,7 @@ export function StepFormModal({
               onClick={() => append({ name: '', unit: '', minValue: '', maxValue: '', expectedValue: '', required: true })}
             >
               <Plus className="size-4" />
-              O'lchov
+              {t('tpl.step.addMeasurement')}
             </Button>
           </div>
 
@@ -182,26 +186,26 @@ export function StepFormModal({
               <div key={field.id} className="rounded-2xl border border-[var(--border-1)] bg-[var(--surface-2)] p-3">
                 <div className="grid grid-cols-2 gap-3">
                   <Input
-                    label="Nomi"
-                    placeholder="Ish bosimi"
-                    error={errors.measurements?.[i]?.name?.message}
-                    {...register(`measurements.${i}.name`, { required: "O'lchov nomi shart", minLength: { value: 2, message: 'Kamida 2 belgi' } })}
+                    label={t('tpl.field.nameShort')}
+                    placeholder={t('tpl.step.measureNamePlaceholder')}
+                    error={fieldError(errors.measurements?.[i]?.name?.message, t)}
+                    {...register(`measurements.${i}.name`, { required: 'tpl.valid.measureNameRequired', minLength: { value: 2, message: 'tpl.valid.min2chars' } })}
                   />
                   <Input
-                    label="Birlik"
-                    placeholder="bar"
-                    error={errors.measurements?.[i]?.unit?.message}
-                    {...register(`measurements.${i}.unit`, { required: 'Birlik shart' })}
+                    label={t('tpl.step.unitLabel')}
+                    placeholder={t('tpl.step.unitPlaceholder')}
+                    error={fieldError(errors.measurements?.[i]?.unit?.message, t)}
+                    {...register(`measurements.${i}.unit`, { required: 'tpl.valid.unitRequired' })}
                   />
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-3">
-                  <Input label="Min" inputMode="decimal" placeholder="0.9" {...register(`measurements.${i}.minValue`)} />
-                  <Input label="Max" inputMode="decimal" placeholder="1.4" {...register(`measurements.${i}.maxValue`)} />
-                  <Input label="Kutilgan" inputMode="decimal" placeholder="1.2" {...register(`measurements.${i}.expectedValue`)} />
+                  <Input label={t('tpl.step.minLabel')} inputMode="decimal" placeholder="0.9" {...register(`measurements.${i}.minValue`)} />
+                  <Input label={t('tpl.step.maxLabel')} inputMode="decimal" placeholder="1.4" {...register(`measurements.${i}.maxValue`)} />
+                  <Input label={t('tpl.step.expectedLabel')} inputMode="decimal" placeholder="1.2" {...register(`measurements.${i}.expectedValue`)} />
                 </div>
                 <div className="mt-3 flex items-center justify-between">
-                  <Checkbox label="Majburiy" {...register(`measurements.${i}.required`)} />
-                  <Button type="button" variant="ghost" size="md" onClick={() => remove(i)} aria-label="O'lchovni o'chirish">
+                  <Checkbox label={t('tpl.field.required')} {...register(`measurements.${i}.required`)} />
+                  <Button type="button" variant="ghost" size="md" onClick={() => remove(i)} aria-label={t('tpl.step.removeMeasurement')}>
                     <Trash2 className="size-4 text-brand-500" />
                   </Button>
                 </div>
@@ -212,10 +216,10 @@ export function StepFormModal({
 
         <div className="flex justify-end gap-3 pt-1">
           <Button type="button" variant="ghost" onClick={onClose} disabled={mutation.isPending}>
-            Bekor qilish
+            {t('common.cancel')}
           </Button>
           <Button type="submit" loading={mutation.isPending}>
-            {isEdit ? 'Saqlash' : "Qo'shish"}
+            {isEdit ? t('common.save') : t('tpl.action.add')}
           </Button>
         </div>
       </form>

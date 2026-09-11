@@ -8,6 +8,9 @@ import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { RefCombobox } from '../../components/catalog/RefCombobox';
 import { getApiError } from '../../api/client';
+import { useT } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
+import { fieldError } from '../../i18n/form';
 import * as catalogApi from '../../api/catalog.api';
 import { somToMinor, minorToSom } from '../../lib/money';
 import type { Product } from '../../types/catalog';
@@ -20,6 +23,7 @@ interface FormValues {
 }
 
 export function ProductFormModal({ editProduct, onClose }: { editProduct: Product | null; onClose: () => void }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const isEdit = !!editProduct;
   const [serverError, setServerError] = useState<string | null>(null);
@@ -60,17 +64,17 @@ export function ProductFormModal({ editProduct, onClose }: { editProduct: Produc
         : catalogApi.createProduct(base);
     },
     onSuccess: () => {
-      toast.success(isEdit ? 'Mahsulot yangilandi' : 'Mahsulot yaratildi');
+      toast.success(isEdit ? t('cat.product.toast.updated') : t('cat.product.toast.created'));
       queryClient.invalidateQueries({ queryKey: ['catalog'] });
       onClose();
     },
-    onError: (err) => setServerError(getApiError(err).message),
+    onError: (err) => setServerError(localizeApiError(getApiError(err).code, t)),
   });
 
   const submit = (v: FormValues) => {
     const re: { company?: string; category?: string } = {};
-    if (companyId == null) re.company = 'Kompaniya tanlanishi shart';
-    if (categoryId == null) re.category = 'Kategoriya tanlanishi shart';
+    if (companyId == null) re.company = t('cat.valid.companyRequired');
+    if (categoryId == null) re.category = t('cat.valid.categoryRequired');
     setRefErrors(re);
     if (Object.keys(re).length > 0) return;
     mutation.mutate(v);
@@ -80,14 +84,14 @@ export function ProductFormModal({ editProduct, onClose }: { editProduct: Produc
     <Modal
       open
       onClose={onClose}
-      title={isEdit ? 'Mahsulotni tahrirlash' : 'Yangi mahsulot'}
+      title={isEdit ? t('cat.product.edit.title') : t('cat.product.new')}
       footer={
         <div className="flex justify-end gap-3">
           <Button type="button" variant="ghost" onClick={onClose} disabled={mutation.isPending}>
-            Bekor qilish
+            {t('common.cancel')}
           </Button>
           <Button type="submit" form="product-form" loading={mutation.isPending}>
-            {isEdit ? 'Saqlash' : 'Yaratish'}
+            {isEdit ? t('common.save') : t('cat.action.create')}
           </Button>
         </div>
       }
@@ -96,34 +100,34 @@ export function ProductFormModal({ editProduct, onClose }: { editProduct: Produc
         {serverError && <Alert tone="error">{serverError}</Alert>}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Input label="Kod (SKU)" error={errors.code?.message} {...register('code', { required: 'Kod kiritilishi shart' })} />
-          <Input label="Nomi" error={errors.name?.message} {...register('name', { required: 'Nomi kiritilishi shart' })} />
+          <Input label={t('cat.form.codeSku')} error={fieldError(errors.code?.message, t)} {...register('code', { required: 'cat.valid.codeRequired' })} />
+          <Input label={t('cat.field.name')} error={fieldError(errors.name?.message, t)} {...register('name', { required: 'cat.valid.nameRequired' })} />
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <RefCombobox kind="companies" label="Kompaniya" value={companyId} onChange={(v) => { setCompanyId(v); setRefErrors((e) => ({ ...e, company: undefined })); }} error={refErrors.company} />
-          <RefCombobox kind="product-categories" label="Kategoriya" value={categoryId} onChange={(v) => { setCategoryId(v); setRefErrors((e) => ({ ...e, category: undefined })); }} error={refErrors.category} />
+          <RefCombobox kind="companies" label={t('cat.field.company')} value={companyId} onChange={(v) => { setCompanyId(v); setRefErrors((e) => ({ ...e, company: undefined })); }} error={refErrors.company} />
+          <RefCombobox kind="product-categories" label={t('cat.field.category')} value={categoryId} onChange={(v) => { setCategoryId(v); setRefErrors((e) => ({ ...e, category: undefined })); }} error={refErrors.category} />
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <RefCombobox kind="brands" label="Brend (ixtiyoriy)" value={brandId} onChange={setBrandId} allowClear placeholder="—" />
-          <RefCombobox kind="units" label="O'lchov birligi (ixtiyoriy)" value={unitId} onChange={setUnitId} allowClear placeholder="—" />
+          <RefCombobox kind="brands" label={t('cat.form.brandOptional')} value={brandId} onChange={setBrandId} allowClear placeholder="—" />
+          <RefCombobox kind="units" label={t('cat.form.unitOptional')} value={unitId} onChange={setUnitId} allowClear placeholder="—" />
         </div>
 
         <Input
-          label="Narx (so'm) — bo'sh qoldirilsa noma'lum"
+          label={t('cat.form.priceProduct')}
           type="number"
           min={0}
           step={1}
-          placeholder="Masalan: 1500000"
-          error={errors.price?.message}
+          placeholder={t('cat.form.pricePlaceholder')}
+          error={fieldError(errors.price?.message, t)}
           {...register('price', {
-            validate: (v) => v.trim() === '' || (Number.isFinite(Number(v)) && Number(v) >= 0) || "Narx manfiy bo'lmagan son bo'lishi kerak",
+            validate: (v) => v.trim() === '' || (Number.isFinite(Number(v)) && Number(v) >= 0) || 'cat.valid.priceNonNegative',
           })}
         />
 
         {isEdit && (
-          <Input label="Narx o'zgarishi sababi (ixtiyoriy)" placeholder="Narx o'zgarsa, tarixda saqlanadi" {...register('priceReason')} />
+          <Input label={t('cat.form.priceReasonLabel')} placeholder={t('cat.form.priceReasonPlaceholder')} {...register('priceReason')} />
         )}
       </form>
     </Modal>

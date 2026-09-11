@@ -3,6 +3,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { ChevronsUpDown, Loader2, X, UserRound } from 'lucide-react';
 import { fetchTechnicians } from '../../api/jobs.api';
 import { cn } from '../../lib/utils';
+import { useT } from '../../i18n/i18n';
 
 /**
  * Phase 11C — a BOUNDED, server-backed, debounced searchable selector for the
@@ -13,6 +14,7 @@ import { cn } from '../../lib/utils';
  * NOT the photo uploader / step performer.
  */
 export function TechnicianFilter({ value, onChange }: { value: number | null; onChange: (id: number | null) => void }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
@@ -59,17 +61,17 @@ export function TechnicianFilter({ value, onChange }: { value: number | null; on
           onClick={() => setOpen((o) => !o)}
           aria-haspopup="listbox"
           aria-expanded={open}
-          aria-label="Mas'ul texnik bo'yicha filtr"
+          aria-label={t('ja.techfilter.filterAria')}
           className="flex h-12 w-full items-center justify-between gap-2 rounded-xl border border-[var(--border-1)] bg-[var(--field-bg)] px-3.5 text-left text-sm text-[var(--text-1)] focus:outline-none focus:ring-2 focus:ring-blue-500/25"
         >
           <span className={cn('flex items-center gap-2 truncate', value == null && 'text-[var(--field-placeholder)]')}>
             <UserRound className="size-4 shrink-0 text-[var(--text-3)]" aria-hidden />
-            {value != null ? selectedName : "Mas'ul texnik"}
+            {value != null ? selectedName : t('ja.assign.responsibleTech')}
           </span>
           <ChevronsUpDown className="size-4 shrink-0 text-[var(--text-3)]" aria-hidden />
         </button>
         {value != null && (
-          <button type="button" onClick={() => pick(null)} aria-label="Texnik filtrini tozalash" className="rounded-xl border border-[var(--border-1)] px-2 text-[var(--text-2)] hover:bg-[var(--surface-2)] focus:outline-none focus:ring-2 focus:ring-blue-500/25">
+          <button type="button" onClick={() => pick(null)} aria-label={t('ja.techfilter.clearAria')} className="rounded-xl border border-[var(--border-1)] px-2 text-[var(--text-2)] hover:bg-[var(--surface-2)] focus:outline-none focus:ring-2 focus:ring-blue-500/25">
             <X className="size-4" />
           </button>
         )}
@@ -88,16 +90,16 @@ export function TechnicianFilter({ value, onChange }: { value: number | null; on
                 else if (e.key === 'Enter') { e.preventDefault(); const o = options[active]; if (o) pick(o.id); }
                 else if (e.key === 'Escape') { e.preventDefault(); setOpen(false); }
               }}
-              placeholder="Qidiruv…"
-              aria-label="Texnik qidirish"
+              placeholder={t('ja.techfilter.searchPlaceholder')}
+              aria-label={t('ja.techfilter.searchAria')}
               className="h-9 w-full rounded-lg border border-[var(--border-1)] bg-[var(--field-bg)] px-3 text-sm text-[var(--text-1)] outline-none placeholder:text-[var(--field-placeholder)] focus:ring-2 focus:ring-blue-500/25"
             />
           </div>
           <ul role="listbox" className="max-h-56 overflow-y-auto pb-1">
             {list.isFetching && options.length === 0 ? (
-              <li className="flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-3)]"><Loader2 className="size-4 animate-spin" /> Yuklanmoqda…</li>
+              <li className="flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-3)]"><Loader2 className="size-4 animate-spin" /> {t('common.loading')}</li>
             ) : options.length === 0 ? (
-              <li className="px-3 py-2 text-sm text-[var(--text-3)]">Texnik topilmadi</li>
+              <li className="px-3 py-2 text-sm text-[var(--text-3)]">{t('ja.techfilter.notFound')}</li>
             ) : (
               options.map((o, i) => (
                 <li key={o.id}>

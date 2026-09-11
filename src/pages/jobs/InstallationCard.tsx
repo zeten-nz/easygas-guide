@@ -10,12 +10,15 @@ import { Modal } from '../../components/ui/Modal';
 import { useAuth } from '../../features/auth/auth-context';
 import * as jobsApi from '../../api/jobs.api';
 import { getApiError } from '../../api/client';
+import { useT } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
 import { can } from '../../lib/permissions';
 import type { GasType, Job } from '../../types/entities';
 import { cn } from '../../lib/utils';
 
 /** §13 installation details: LPG/CNG, kit, ECU, cylinder + note — exact spec fields. */
 export function InstallationCard({ job }: { job: Job }) {
+  const t = useT();
   const { user: actor } = useAuth();
   const [editOpen, setEditOpen] = useState(false);
 
@@ -28,27 +31,27 @@ export function InstallationCard({ job }: { job: Job }) {
       <div className="flex items-center justify-between gap-3">
         <p className="flex items-center gap-2 font-bold text-[var(--text-1)]">
           <Fuel className="size-4.5 text-brand-500" />
-          O'rnatish ma'lumotlari
+          {t('jb.inst.title')}
         </p>
         {editable && (
           <Button variant="secondary" size="md" onClick={() => setEditOpen(true)}>
             <Pencil className="size-4" />
-            {isEmpty ? 'Kiritish' : 'Tahrirlash'}
+            {isEmpty ? t('jb.inst.add') : t('jb.inst.edit')}
           </Button>
         )}
       </div>
 
       {isEmpty ? (
-        <p className="mt-3 text-sm text-[var(--text-2)]">O'rnatish ma'lumotlari hali kiritilmagan.</p>
+        <p className="mt-3 text-sm text-[var(--text-2)]">{t('jb.inst.empty')}</p>
       ) : (
         <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
-          <InfoItem label="Gaz turi" value={inst.gasType} highlight />
-          <InfoItem label="Kit" value={inst.kit} />
-          <InfoItem label="ECU" value={inst.ecu} />
-          <InfoItem label="Ballon" value={inst.cylinder} />
+          <InfoItem label={t('jb.inst.gasType')} value={inst.gasType} highlight />
+          <InfoItem label={t('jb.inst.kit')} value={inst.kit} />
+          <InfoItem label={t('jb.inst.ecu')} value={inst.ecu} />
+          <InfoItem label={t('jb.inst.cylinder')} value={inst.cylinder} />
           {inst.note && (
             <div className="col-span-2 sm:col-span-4">
-              <p className="text-xs text-[var(--text-2)]">Izoh</p>
+              <p className="text-xs text-[var(--text-2)]">{t('jb.inst.note')}</p>
               <p className="text-[var(--text-1)]">{inst.note}</p>
             </div>
           )}
@@ -78,6 +81,7 @@ interface FormValues {
 }
 
 function InstallationModal({ job, onClose }: { job: Job; onClose: () => void }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
   const inst = job.installation;
@@ -103,20 +107,20 @@ function InstallationModal({ job, onClose }: { job: Job; onClose: () => void }) 
         note: v.note.trim() || null,
       }),
     onSuccess: () => {
-      toast.success("O'rnatish ma'lumotlari saqlandi");
+      toast.success(t('jb.inst.savedToast'));
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       onClose();
     },
-    onError: (err) => setServerError(getApiError(err).message),
+    onError: (err) => setServerError(localizeApiError(getApiError(err).code, t)),
   });
 
   return (
-    <Modal open onClose={onClose} title="O'rnatish ma'lumotlari">
+    <Modal open onClose={onClose} title={t('jb.inst.title')}>
       <form onSubmit={handleSubmit((v) => mutation.mutate(v))} noValidate className="space-y-4">
         {serverError && <Alert tone="error">{serverError}</Alert>}
 
         <div>
-          <p className="mb-1.5 text-[13px] font-medium text-[var(--text-2)]">Gaz turi</p>
+          <p className="mb-1.5 text-[13px] font-medium text-[var(--text-2)]">{t('jb.inst.gasType')}</p>
           <div className="grid grid-cols-2 gap-2">
             {(['LPG', 'CNG'] as GasType[]).map((g) => (
               <button
@@ -136,19 +140,19 @@ function InstallationModal({ job, onClose }: { job: Job; onClose: () => void }) 
           </div>
         </div>
 
-        <Input label="Kit" placeholder="Masalan: Tomasetto Alaska" {...register('kit')} />
+        <Input label={t('jb.inst.kit')} placeholder={t('jb.inst.kitPlaceholder')} {...register('kit')} />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Input label="ECU" placeholder="Masalan: Stag 4 QBox" {...register('ecu')} />
-          <Input label="Ballon" placeholder="Masalan: 60L toroid" {...register('cylinder')} />
+          <Input label={t('jb.inst.ecu')} placeholder={t('jb.inst.ecuPlaceholder')} {...register('ecu')} />
+          <Input label={t('jb.inst.cylinder')} placeholder={t('jb.inst.cylinderPlaceholder')} {...register('cylinder')} />
         </div>
-        <Input label="Izoh (ixtiyoriy)" placeholder="Kerakli texnik ma'lumotlar" {...register('note')} />
+        <Input label={t('jb.noteOptional')} placeholder={t('jb.inst.notePlaceholder')} {...register('note')} />
 
         <div className="flex justify-end gap-3 pt-1">
           <Button type="button" variant="ghost" onClick={onClose} disabled={mutation.isPending}>
-            Bekor qilish
+            {t('common.cancel')}
           </Button>
           <Button type="submit" loading={mutation.isPending}>
-            Saqlash
+            {t('common.save')}
           </Button>
         </div>
       </form>

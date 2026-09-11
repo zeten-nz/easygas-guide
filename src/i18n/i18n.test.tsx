@@ -3,8 +3,7 @@ import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { I18nProvider, useLocale, useT } from './i18n';
 import { LanguageSelector } from '../components/ui/LanguageSelector';
-import { uz } from './messages/uz';
-import { ru } from './messages/ru';
+import { uz, ru } from './messages';
 
 beforeEach(() => {
   try {
@@ -23,9 +22,12 @@ test('uz and ru catalogues have identical keys (no missing/extra translations)',
   expect(ruKeys).toEqual(uzKeys);
 });
 
-test('no translation value is empty in either locale', () => {
-  for (const [k, v] of Object.entries(uz)) expect(v, `uz.${k}`).not.toBe('');
-  for (const [k, v] of Object.entries(ru)) expect(v, `ru.${k}`).not.toBe('');
+test('no translation value is unexpectedly empty in either locale', () => {
+  // A few keys are deliberately blank: the risk activate/retire modals put the
+  // exact version in a standalone <b>, so the uz sentence prefix is empty.
+  const ALLOW_EMPTY = new Set(['rp.activate.bodyPrefix', 'rp.retire.bodyPrefix']);
+  for (const [k, v] of Object.entries(uz)) if (!ALLOW_EMPTY.has(k)) expect(v, `uz.${k}`).not.toBe('');
+  for (const [k, v] of Object.entries(ru)) if (!ALLOW_EMPTY.has(k)) expect(v, `ru.${k}`).not.toBe('');
 });
 
 // ---- Interpolation ----------------------------------------------------------

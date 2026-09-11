@@ -2,9 +2,9 @@
    The i18n provider and its hooks intentionally live together (one source of
    truth for the context). This module is not a fast-refresh boundary. */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { uz } from './messages/uz';
-import { ru } from './messages/ru';
+import { uz, ru } from './messages';
 import { DEFAULT_LOCALE, isLocale, type Locale, type MessageKey } from './types';
+import { formatDate, formatDateTime, formatNumber } from './format';
 
 const CATALOGS: Record<Locale, Record<MessageKey, string>> = { uz, ru };
 const STORAGE_KEY = 'eg.lang';
@@ -35,7 +35,22 @@ interface I18nValue {
   t: TFunc;
 }
 
+/** Builds a translator for a locale (catalog → Uzbek → raw-key fallback chain). */
+function buildT(locale: Locale): TFunc {
+  const catalog = CATALOGS[locale];
+  return (key, vars) => interpolate(catalog[key] ?? uz[key] ?? key, vars);
+}
+
 const I18nContext = createContext<I18nValue | null>(null);
+
+/**
+ * Default context used when a component renders OUTSIDE an <I18nProvider> (the
+ * real app always wraps in one — see app/providers). Rather than throwing, we
+ * fall back to Uzbek (the default locale) with a no-op setter, so a generic leaf
+ * like <Spinner> that reads a label can render anywhere (e.g. in a focused unit
+ * test) without a provider. Locale switching still requires the provider.
+ */
+const DEFAULT_CTX: I18nValue = { locale: DEFAULT_LOCALE, setLocale: () => {}, t: buildT(DEFAULT_LOCALE) };
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(readStoredLocale);
@@ -54,20 +69,14 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const t = useMemo<TFunc>(() => {
-    const catalog = CATALOGS[locale];
-    // Fall back to Uzbek, then the raw key, so a missing string is never blank.
-    return (key, vars) => interpolate(catalog[key] ?? uz[key] ?? key, vars);
-  }, [locale]);
+  const t = useMemo<TFunc>(() => buildT(locale), [locale]);
 
   const value = useMemo<I18nValue>(() => ({ locale, setLocale, t }), [locale, setLocale, t]);
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
 export function useI18n(): I18nValue {
-  const ctx = useContext(I18nContext);
-  if (!ctx) throw new Error('useI18n must be used within <I18nProvider>');
-  return ctx;
+  return useContext(I18nContext) ?? DEFAULT_CTX;
 }
 
 export function useT(): TFunc {
@@ -77,4 +86,22 @@ export function useT(): TFunc {
 export function useLocale(): { locale: Locale; setLocale: (l: Locale) => void } {
   const { locale, setLocale } = useI18n();
   return { locale, setLocale };
+}
+
+/** Locale-aware date/time formatter bound to the current locale (uz-UZ / ru-RU). */
+export function useDateTime(): (value: Date | string | number) => string {
+  const { locale } = useI18n();
+  return (value) => formatDateTime(value, locale);
+}
+
+/** Locale-aware date formatter (optional Intl options) bound to the current locale. */
+export function useDate(): (value: Date | string | number, opts?: Intl.DateTimeFormatOptions) => string {
+  const { locale } = useI18n();
+  return (value, opts) => formatDate(value, locale, opts);
+}
+
+/** Locale-aware number formatter bound to the current locale. */
+export function useNumber(): (value: number, opts?: Intl.NumberFormatOptions) => string {
+  const { locale } = useI18n();
+  return (value, opts) => formatNumber(value, locale, opts);
 }

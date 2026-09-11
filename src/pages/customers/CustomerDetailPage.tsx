@@ -12,12 +12,16 @@ import * as customersApi from '../../api/customers.api';
 import { getApiError } from '../../api/client';
 import { can } from '../../lib/permissions';
 import { displayPhone } from '../../lib/phone';
+import { useT, useNumber } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
 import type { Vehicle } from '../../types/entities';
 
 export function CustomerDetailPage() {
   const { id } = useParams();
   const customerId = Number(id);
   const { user: actor } = useAuth();
+  const t = useT();
+  const fmtN = useNumber();
 
   const [editOpen, setEditOpen] = useState(false);
   const [vehicleFormOpen, setVehicleFormOpen] = useState(false);
@@ -36,7 +40,7 @@ export function CustomerDetailPage() {
   });
 
   if (!Number.isInteger(customerId) || customerId <= 0) {
-    return <Alert tone="error">Mijoz topilmadi</Alert>;
+    return <Alert tone="error">{t('m.customers.notFound')}</Alert>;
   }
 
   if (customerQuery.isLoading) {
@@ -50,10 +54,10 @@ export function CustomerDetailPage() {
   if (customerQuery.isError) {
     return (
       <div className="mx-auto max-w-3xl space-y-4">
-        <Alert tone="error">{getApiError(customerQuery.error).message}</Alert>
+        <Alert tone="error">{localizeApiError(getApiError(customerQuery.error).code, t)}</Alert>
         <Link to="/app/customers" className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-500">
           <ArrowLeft className="size-4" />
-          Mijozlar ro'yxatiga qaytish
+          {t('m.customerDetail.backToList')}
         </Link>
       </div>
     );
@@ -68,7 +72,7 @@ export function CustomerDetailPage() {
         className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--text-2)] transition-colors hover:text-[var(--text-1)]"
       >
         <ArrowLeft className="size-4" />
-        Mijozlar
+        {t('m.customers.title')}
       </Link>
 
       <div className="mt-4 flex flex-wrap items-start justify-between gap-3 rounded-3xl border border-[var(--border-1)] bg-[var(--surface)] p-5 sm:p-6">
@@ -87,7 +91,7 @@ export function CustomerDetailPage() {
         {can(actor, 'customers.manage') && (
           <Button variant="secondary" onClick={() => setEditOpen(true)}>
             <Pencil className="size-4" />
-            Tahrirlash
+            {t('m.action.edit')}
           </Button>
         )}
       </div>
@@ -95,7 +99,7 @@ export function CustomerDetailPage() {
       <div className="mt-6">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-bold text-[var(--text-1)]">
-            Avtomobillar
+            {t('m.vehicles.title')}
             <span className="ml-2 text-sm font-medium text-[var(--text-2)]">({customer.vehicleCount})</span>
           </h2>
           {can(actor, 'vehicles.manage') && (
@@ -106,7 +110,7 @@ export function CustomerDetailPage() {
               }}
             >
               <Plus className="size-4" />
-              Avtomobil qo'shish
+              {t('m.vehicles.add')}
             </Button>
           )}
         </div>
@@ -118,12 +122,14 @@ export function CustomerDetailPage() {
             </div>
           )}
 
-          {vehiclesQuery.isError && <Alert tone="error">{getApiError(vehiclesQuery.error).message}</Alert>}
+          {vehiclesQuery.isError && (
+            <Alert tone="error">{localizeApiError(getApiError(vehiclesQuery.error).code, t)}</Alert>
+          )}
 
           {vehiclesQuery.data?.length === 0 && (
             <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[var(--border-1)] py-12 text-[var(--text-2)]">
               <Car className="size-8" />
-              <p className="text-sm">Bu mijozda hali avtomobil yo'q</p>
+              <p className="text-sm">{t('m.customerDetail.noVehicles')}</p>
             </div>
           )}
 
@@ -147,7 +153,7 @@ export function CustomerDetailPage() {
                   {v.mileage != null && (
                     <span className="inline-flex items-center gap-1">
                       <Gauge className="size-3.5" />
-                      {v.mileage.toLocaleString('uz-UZ')} km
+                      {fmtN(v.mileage)} km
                     </span>
                   )}
                   {v.vin && <span className="font-mono text-xs">VIN: {v.vin}</span>}
@@ -160,10 +166,10 @@ export function CustomerDetailPage() {
                     setEditVehicle(v);
                     setVehicleFormOpen(true);
                   }}
-                  aria-label={`${v.plateNumber}ni tahrirlash`}
+                  aria-label={t('m.vehicles.editAria', { plate: v.plateNumber })}
                 >
                   <Pencil className="size-4" />
-                  <span className="hidden sm:inline">Tahrirlash</span>
+                  <span className="hidden sm:inline">{t('m.action.edit')}</span>
                 </Button>
               )}
             </div>
