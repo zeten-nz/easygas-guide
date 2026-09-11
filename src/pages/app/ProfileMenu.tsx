@@ -5,6 +5,7 @@ import { DropdownMenu, MenuItem } from '../../components/ui/DropdownMenu';
 import { useAuth } from '../../features/auth/auth-context';
 import { ROLE_LABELS } from '../../types/auth';
 import { displayPhone } from '../../lib/phone';
+import { useT } from '../../i18n/i18n';
 
 /**
  * Top-right account menu: the current user's identity, a link to their own
@@ -14,6 +15,7 @@ import { displayPhone } from '../../lib/phone';
 export function ProfileMenu() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const t = useT();
   const [loggingOut, setLoggingOut] = useState(false);
   if (!user) return null;
 
@@ -33,7 +35,7 @@ export function ProfileMenu() {
       button={
         <button
           type="button"
-          aria-label="Hisob menyusi"
+          aria-label={t('account.menuAria')}
           className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 text-left transition-colors hover:bg-[var(--surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
         >
           <span className="flex size-9 items-center justify-center rounded-full bg-blue-50 text-blue-700">
@@ -67,7 +69,7 @@ export function ProfileMenu() {
                 navigate('/app/profile');
               }}
             >
-              Mening profilim
+              {t('account.profile')}
             </MenuItem>
             <MenuItem
               icon={<LogOut className="size-[18px]" />}
@@ -77,7 +79,7 @@ export function ProfileMenu() {
                 void handleLogout();
               }}
             >
-              Chiqish
+              {t('account.logout')}
             </MenuItem>
           </div>
         </>

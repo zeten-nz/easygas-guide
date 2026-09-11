@@ -2,23 +2,26 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../features/auth/auth-context';
 import { can } from '../../lib/permissions';
 import { ROLE_LABELS } from '../../types/auth';
+import { useT } from '../../i18n/i18n';
+import type { MessageKey } from '../../i18n/types';
 import { NAV_GROUPS } from './nav-config';
 
 /** One honest line per destination — describes the task, never invented metrics. */
-const DESCRIPTIONS: Record<string, string> = {
-  '/app/my-jobs': "Sizga biriktirilgan ishlar va checklistlar.",
-  '/app/jobs': "Filial ishlarini ko'ring yoki yangi ish oching.",
-  '/app/admin/users': "Xodimlarni boshqaring — profil, tahrirlash, parol tiklash.",
-  '/app/admin/registration-requests': "Ro'yxatdan o'tish so'rovlarini ko'rib chiqing.",
-  '/app/customers': "Mijozlar ma'lumotlari.",
-  '/app/vehicles': "Avtomobillar reyestri.",
-  '/app/admin/branches': "Filiallarni boshqaring.",
-  '/app/admin/templates': "Checklist shablonlari va versiyalari.",
-  '/app/admin/risk-policy': "Xavf matritsasi versiyalari.",
+const DESCRIPTION_KEYS: Record<string, MessageKey> = {
+  '/app/my-jobs': 'home.desc.myJobs',
+  '/app/jobs': 'home.desc.jobs',
+  '/app/admin/users': 'home.desc.users',
+  '/app/admin/registration-requests': 'home.desc.requests',
+  '/app/customers': 'home.desc.customers',
+  '/app/vehicles': 'home.desc.vehicles',
+  '/app/admin/branches': 'home.desc.branches',
+  '/app/admin/templates': 'home.desc.templates',
+  '/app/admin/risk-policy': 'home.desc.riskPolicy',
 };
 
 export function HomePage() {
   const { user } = useAuth();
+  const t = useT();
   if (!user) return null;
 
   const cards = NAV_GROUPS.flatMap((g) => g.items).filter(
@@ -28,7 +31,7 @@ export function HomePage() {
   return (
     <div>
       <div>
-        <h1 className="text-2xl font-bold text-[var(--text-1)]">Xush kelibsiz, {user.firstName}</h1>
+        <h1 className="text-2xl font-bold text-[var(--text-1)]">{t('home.welcome', { name: user.firstName })}</h1>
         <p className="mt-1 text-sm text-[var(--text-2)]">{ROLE_LABELS[user.role]}</p>
       </div>
 
@@ -44,16 +47,16 @@ export function HomePage() {
                 <item.icon className="size-5" />
               </span>
               <span className="min-w-0">
-                <span className="block font-semibold text-[var(--text-1)]">{item.label}</span>
-                <span className="mt-0.5 block text-sm text-[var(--text-2)]">{DESCRIPTIONS[item.to]}</span>
+                <span className="block font-semibold text-[var(--text-1)]">{t(item.labelKey)}</span>
+                <span className="mt-0.5 block text-sm text-[var(--text-2)]">
+                  {DESCRIPTION_KEYS[item.to] ? t(DESCRIPTION_KEYS[item.to]) : ''}
+                </span>
               </span>
             </Link>
           ))}
         </div>
       ) : (
-        <p className="mt-6 text-sm text-[var(--text-2)]">
-          Ishni boshlash uchun yuqoridagi menyudan bo'lim tanlang.
-        </p>
+        <p className="mt-6 text-sm text-[var(--text-2)]">{t('home.empty')}</p>
       )}
     </div>
   );

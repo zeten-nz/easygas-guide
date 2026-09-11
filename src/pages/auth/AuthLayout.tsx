@@ -1,17 +1,25 @@
 import type { ReactNode } from 'react';
 import { Send } from 'lucide-react';
 import { Brand } from '../../components/ui/Brand';
+import { LanguageSelector } from '../../components/ui/LanguageSelector';
+import { useT } from '../../i18n/i18n';
 
 const SUPPORT_URL = import.meta.env.VITE_SUPPORT_URL ?? 'https://t.me/EasygasGarantbot';
 
 /**
  * Shared premium dark shell for all authentication screens:
- * graphite backdrop, restrained red glow, centered glass card.
+ * graphite backdrop, restrained red glow, centered glass card. A language
+ * selector sits above the card so the visitor can switch uz/ru before signing in.
  */
 export function AuthLayout({ children, footer }: { children: ReactNode; footer?: ReactNode }) {
+  const t = useT();
   return (
     <div className="theme-dark auth-backdrop flex min-h-dvh flex-col items-center justify-center px-4 py-8">
       <main className="w-full max-w-[420px]">
+        <div className="mb-3 flex justify-end">
+          <LanguageSelector />
+        </div>
+
         <div className="mb-8 flex flex-col items-center gap-4">
           {/* Real stacked logo on a light "brand plate" — the assets are made for
               light surfaces; this shows them correctly on the dark auth backdrop
@@ -20,7 +28,7 @@ export function AuthLayout({ children, footer }: { children: ReactNode; footer?:
             <Brand variant="stacked" height={92} priority />
           </div>
           <p className="text-center text-[13px] font-medium uppercase tracking-[0.18em] text-[var(--text-2)]">
-            Safety Technology
+            {t('common.brandTagline')}
           </p>
         </div>
 
@@ -36,14 +44,12 @@ export function AuthLayout({ children, footer }: { children: ReactNode; footer?:
             className="inline-flex items-center gap-2 rounded-full border border-[var(--border-1)] bg-[var(--surface)] px-4 py-2 text-[13px] text-[var(--text-2)] transition-colors hover:text-[var(--text-1)]"
           >
             <Send className="size-4" />
-            Yordam kerakmi? @EasygasGarantbot
+            {t('auth.support')} @EasygasGarantbot
           </a>
         </div>
       </main>
 
-      <p className="mt-8 text-center text-xs text-[var(--text-2)]/70">
-        Safe installation. Verified work. Trusted service.
-      </p>
+      <p className="mt-8 text-center text-xs text-[var(--text-2)]/70">{t('auth.tagline')}</p>
     </div>
   );
 }
