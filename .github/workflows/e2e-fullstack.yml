@@ -105,9 +105,11 @@ jobs:
           # Server: default main. The DEPENDENCY dimension is the server ref.
           SERVER_REF="${IN_SERVER_REF:-main}"
           if [ "$SERVER_REF" = "main" ]; then MODE="main-compat"; else MODE="coordinated"; fi
-          printf 'client_ref=%s\n' "$CLIENT_REF" >> "$GITHUB_OUTPUT"
-          printf 'server_ref=%s\n' "$SERVER_REF" >> "$GITHUB_OUTPUT"
-          printf 'mode=%s\n' "$MODE" >> "$GITHUB_OUTPUT"
+          {
+            printf 'client_ref=%s\n' "$CLIENT_REF"
+            printf 'server_ref=%s\n' "$SERVER_REF"
+            printf 'mode=%s\n' "$MODE"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Checkout client (this repo)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -156,7 +158,7 @@ jobs:
           # If a specific full SHA was requested, assert the checkout matches it.
           case "$REQ_SERVER_REF" in
             *[!0-9a-f]* | "" ) : ;;  # not a bare hex SHA — skip strict match
-            * ) if [ "${#REQ_SERVER_REF}" -ge 7 ] && [ "${SERVER_SHA#${REQ_SERVER_REF}}" = "$SERVER_SHA" ]; then
+            * ) if [ "${#REQ_SERVER_REF}" -ge 7 ] && [ "${SERVER_SHA#"${REQ_SERVER_REF}"}" = "$SERVER_SHA" ]; then
                   echo "::warning::server checkout $SERVER_SHA does not start with requested SHA $REQ_SERVER_REF" ; fi ;;
           esac
 
