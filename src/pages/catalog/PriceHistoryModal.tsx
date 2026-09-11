@@ -4,6 +4,8 @@ import { Modal } from '../../components/ui/Modal';
 import { Alert } from '../../components/ui/Alert';
 import { Spinner } from '../../components/ui/Spinner';
 import { getApiError } from '../../api/client';
+import { useT, useDateTime } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
 import { getProductPriceHistory, getServicePriceHistory } from '../../api/catalog.api';
 import { formatUZS } from '../../lib/money';
 
@@ -23,24 +25,26 @@ export function PriceHistoryModal({
   title: string;
   onClose: () => void;
 }) {
+  const t = useT();
+  const fmtDt = useDateTime();
   const query = useQuery({
     queryKey: ['catalog', kind, 'price-history', id],
     queryFn: () => (kind === 'product' ? getProductPriceHistory(id) : getServicePriceHistory(id)),
   });
 
   return (
-    <Modal open onClose={onClose} title="Narx tarixi">
+    <Modal open onClose={onClose} title={t('cat.field.priceHistory')}>
       <p className="mb-3 text-sm text-[var(--text-2)]">{title}</p>
       {query.isLoading && (
         <div className="flex justify-center py-10">
           <Spinner className="size-6 text-blue-600" />
         </div>
       )}
-      {query.isError && <Alert tone="error">{getApiError(query.error).message}</Alert>}
+      {query.isError && <Alert tone="error">{localizeApiError(getApiError(query.error).code, t)}</Alert>}
       {query.data && query.data.length === 0 && (
         <div className="flex flex-col items-center gap-2 py-10 text-center text-[var(--text-2)]">
           <History className="size-7 text-[var(--text-3)]" />
-          <p className="text-sm">Narx hali o'zgartirilmagan</p>
+          <p className="text-sm">{t('cat.priceHistory.empty')}</p>
         </div>
       )}
       {query.data && query.data.length > 0 && (
@@ -52,14 +56,14 @@ export function PriceHistoryModal({
                   {formatUZS(h.oldPriceMinor)} → {formatUZS(h.newPriceMinor)}
                 </span>
                 {h.source === 'IMPORT' && (
-                  <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700">Import</span>
+                  <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700">{t('cat.source.importShort')}</span>
                 )}
               </div>
               <div className="mt-1 text-[var(--text-2)]">
-                {new Date(h.createdAt).toLocaleString('uz-UZ')}
+                {fmtDt(h.createdAt)}
                 {h.changedByName ? ` · ${h.changedByName}` : ''}
               </div>
-              {h.reason && <div className="mt-1 text-[var(--text-2)]">Sabab: {h.reason}</div>}
+              {h.reason && <div className="mt-1 text-[var(--text-2)]">{t('cat.priceHistory.reasonLabel')}: {h.reason}</div>}
             </li>
           ))}
         </ol>

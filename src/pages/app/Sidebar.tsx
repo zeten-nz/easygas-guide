@@ -3,6 +3,7 @@ import { Brand } from '../../components/ui/Brand';
 import { useAuth } from '../../features/auth/auth-context';
 import { can } from '../../lib/permissions';
 import { cn } from '../../lib/utils';
+import { useT } from '../../i18n/i18n';
 import { NAV_GROUPS } from './nav-config';
 
 /**
@@ -13,6 +14,7 @@ import { NAV_GROUPS } from './nav-config';
  */
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { user } = useAuth();
+  const t = useT();
   if (!user) return null;
 
   return (
@@ -21,22 +23,22 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <Link
           to="/app"
           onClick={onNavigate}
-          aria-label="EASY GAS — bosh sahifa"
+          aria-label={t('nav.homeAria')}
           className="rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
         >
           <Brand variant="wordmark" height={28} priority decorative />
         </Link>
       </div>
 
-      <nav aria-label="Asosiy navigatsiya" className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
+      <nav aria-label={t('nav.aria')} className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
         {NAV_GROUPS.map((group, gi) => {
           const items = group.items.filter((it) => it.permission === null || can(user, it.permission));
           if (items.length === 0) return null;
           return (
-            <div key={group.label ?? `group-${gi}`}>
-              {group.label && (
+            <div key={group.labelKey ?? `group-${gi}`}>
+              {group.labelKey && (
                 <p className="mb-1.5 px-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-3)]">
-                  {group.label}
+                  {t(group.labelKey)}
                 </p>
               )}
               <ul className="space-y-0.5">
@@ -59,7 +61,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                       {({ isActive }) => (
                         <>
                           <item.icon className={cn('size-[18px] shrink-0', isActive ? 'text-blue-600' : 'text-[var(--text-3)]')} />
-                          {item.label}
+                          {t(item.labelKey)}
                         </>
                       )}
                     </NavLink>
@@ -72,7 +74,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       <p className="shrink-0 border-t border-[var(--border-1)] px-5 py-3 text-xs text-[var(--text-3)]">
-        EASY GAS · Safety Technology
+        {t('common.appName')} · {t('common.brandTagline')}
       </p>
     </div>
   );

@@ -3,6 +3,7 @@
  * the authoritative readiness (canComplete + reasons + conditions); this ONLY
  * maps it to labels for the UI — it never decides completion itself.
  */
+import type { MessageKey } from '../../i18n/types';
 
 export interface CompletionReadiness {
   canComplete: boolean;
@@ -19,24 +20,27 @@ export interface CompletionReadiness {
 
 export interface BlockerRow {
   key: keyof CompletionReadiness['conditions'];
+  /** @deprecated Uzbek-only fallback text — prefer `labelKey` + `t()` for locale-aware rendering. */
   label: string;
+  labelKey: MessageKey;
   ok: boolean;
 }
 
-const CONDITION_LABELS: Record<keyof CompletionReadiness['conditions'], string> = {
-  checklist: 'Barcha bosqichlar bajarilgan',
-  stops: 'Barcha STOP tasdiqlangan',
-  photos: 'Kerakli fotolar yuklangan',
-  measurements: "O'lchovlar to'g'ri",
-  risks: 'Hal qilinmagan kritik xavf yo\'q',
-  signature: 'Mijoz imzosi olingan',
+const CONDITION_LABELS: Record<keyof CompletionReadiness['conditions'], { label: string; labelKey: MessageKey }> = {
+  checklist: { label: 'Barcha bosqichlar bajarilgan', labelKey: 'jb.blocker.checklist' },
+  stops: { label: 'Barcha STOP tasdiqlangan', labelKey: 'jb.blocker.stops' },
+  photos: { label: 'Kerakli fotolar yuklangan', labelKey: 'jb.blocker.photos' },
+  measurements: { label: "O'lchovlar to'g'ri", labelKey: 'jb.blocker.measurements' },
+  risks: { label: 'Hal qilinmagan kritik xavf yo\'q', labelKey: 'jb.blocker.risks' },
+  signature: { label: 'Mijoz imzosi olingan', labelKey: 'jb.cond.signature' },
 };
 
 /** Ordered condition rows for the readiness checklist UI (✓/✗). */
 export function readinessRows(readiness: CompletionReadiness): BlockerRow[] {
   return (Object.keys(CONDITION_LABELS) as (keyof CompletionReadiness['conditions'])[]).map((key) => ({
     key,
-    label: CONDITION_LABELS[key],
+    label: CONDITION_LABELS[key].label,
+    labelKey: CONDITION_LABELS[key].labelKey,
     ok: readiness.conditions[key],
   }));
 }

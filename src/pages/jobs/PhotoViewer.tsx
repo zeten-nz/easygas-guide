@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw, AlertTriangle, Loader2 } from 'lucide-react';
 import * as jobsApi from '../../api/jobs.api';
 import type { JobPhoto } from '../../api/jobs.api';
+import { useT } from '../../i18n/i18n';
 import { EvidenceMeta } from './evidence-badges';
 
 const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),[tabindex]:not([tabindex="-1"])';
@@ -30,6 +31,7 @@ export function PhotoViewer({
   onIndexChange: (i: number) => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const overlayRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
@@ -115,7 +117,7 @@ export function PhotoViewer({
       ref={overlayRef}
       role="dialog"
       aria-modal="true"
-      aria-label={`Foto ${index + 1} / ${photos.length} — ${photo.stepName}`}
+      aria-label={t('jb.viewer.dialogAria', { n: index + 1, total: photos.length, step: photo.stepName })}
       tabIndex={-1}
       className="fixed inset-0 z-[60] flex flex-col bg-black/95 text-white"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
@@ -123,13 +125,13 @@ export function PhotoViewer({
       {/* Top bar — all controls here (never bottom-flush). */}
       <div className="flex shrink-0 items-center justify-between gap-2 p-3 sm:p-4">
         <div className="flex items-center gap-1.5">
-          <button type="button" onClick={() => stepZoom(-1)} disabled={zoom <= ZOOMS[0]} aria-label="Kichiklashtirish" className="rounded-lg bg-white/10 p-2 hover:bg-white/20 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"><ZoomOut className="size-5" /></button>
-          <button type="button" onClick={() => stepZoom(1)} disabled={zoom >= ZOOMS[ZOOMS.length - 1]} aria-label="Kattalashtirish" className="rounded-lg bg-white/10 p-2 hover:bg-white/20 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"><ZoomIn className="size-5" /></button>
-          <button type="button" onClick={() => zoomTo(1)} disabled={zoom === 1} aria-label="Asliga qaytarish" className="rounded-lg bg-white/10 p-2 hover:bg-white/20 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"><RotateCcw className="size-5" /></button>
+          <button type="button" onClick={() => stepZoom(-1)} disabled={zoom <= ZOOMS[0]} aria-label={t('jb.viewer.zoomOut')} className="rounded-lg bg-white/10 p-2 hover:bg-white/20 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"><ZoomOut className="size-5" /></button>
+          <button type="button" onClick={() => stepZoom(1)} disabled={zoom >= ZOOMS[ZOOMS.length - 1]} aria-label={t('jb.viewer.zoomIn')} className="rounded-lg bg-white/10 p-2 hover:bg-white/20 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"><ZoomIn className="size-5" /></button>
+          <button type="button" onClick={() => zoomTo(1)} disabled={zoom === 1} aria-label={t('jb.viewer.reset')} className="rounded-lg bg-white/10 p-2 hover:bg-white/20 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"><RotateCcw className="size-5" /></button>
           <span className="ml-1 text-sm tabular-nums text-white/70" aria-live="polite">{Math.round(zoom * 100)}%</span>
         </div>
         <span className="text-sm font-medium tabular-nums" aria-live="polite">{index + 1} / {photos.length}</span>
-        <button type="button" data-viewer-close onClick={onClose} aria-label="Yopish" className="rounded-lg bg-white/10 p-2 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"><X className="size-5" /></button>
+        <button type="button" data-viewer-close onClick={onClose} aria-label={t('common.close')} className="rounded-lg bg-white/10 p-2 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"><X className="size-5" /></button>
       </div>
 
       {/* Caption directly under the top bar (kept OFF the bottom edge). */}
@@ -146,14 +148,14 @@ export function PhotoViewer({
         {state === 'error' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
             <AlertTriangle className="size-10 text-[var(--warning)]" />
-            <p className="max-w-sm text-sm text-white/80">Rasmni yuklab bo'lmadi. Fayl vaqtincha mavjud emas bo'lishi mumkin.</p>
-            <button type="button" onClick={() => { setState('loading'); setReloadKey((k) => k + 1); }} className="rounded-lg bg-white/15 px-4 py-2 text-sm font-semibold hover:bg-white/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70">Qayta urinish</button>
+            <p className="max-w-sm text-sm text-white/80">{t('jb.viewer.loadError')}</p>
+            <button type="button" onClick={() => { setState('loading'); setReloadKey((k) => k + 1); }} className="rounded-lg bg-white/15 px-4 py-2 text-sm font-semibold hover:bg-white/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70">{t('common.retry')}</button>
           </div>
         )}
         <img
           key={src}
           src={src}
-          alt={`${photo.stepName} — ${photo.uploadedByName}, urinish ${photo.attempt}`}
+          alt={t('jb.viewer.imgAlt', { step: photo.stepName, uploader: photo.uploadedByName, attempt: photo.attempt })}
           draggable={false}
           onLoad={() => setState('ready')}
           onError={() => setState('error')}
@@ -168,10 +170,10 @@ export function PhotoViewer({
 
         {/* Side navigation — vertically centred (reachable on mobile, off the bottom). */}
         {!atStart && (
-          <button type="button" onClick={() => go(-1)} aria-label="Oldingi rasm" className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2.5 hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"><ChevronLeft className="size-6" /></button>
+          <button type="button" onClick={() => go(-1)} aria-label={t('jb.viewer.prev')} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2.5 hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"><ChevronLeft className="size-6" /></button>
         )}
         {!atEnd && (
-          <button type="button" onClick={() => go(1)} aria-label="Keyingi rasm" className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2.5 hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"><ChevronRight className="size-6" /></button>
+          <button type="button" onClick={() => go(1)} aria-label={t('jb.viewer.next')} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2.5 hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"><ChevronRight className="size-6" /></button>
         )}
       </div>
     </div>

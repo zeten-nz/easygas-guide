@@ -15,8 +15,14 @@ import { getApiError } from '../../api/client';
 import { REGIONS } from '../../lib/regions';
 import type { BranchFull } from '../../types/auth';
 import { cn } from '../../lib/utils';
+import { useT, useLocale } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
+import { fieldError } from '../../i18n/form';
+import { regionLabel } from '../../i18n/labels';
 
 export function BranchesPage() {
+  const t = useT();
+  const { locale } = useLocale();
   const queryClient = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<BranchFull | null>(null);
@@ -31,13 +37,13 @@ export function BranchesPage() {
     mutationFn: (target: BranchFull) =>
       target.status === 'ACTIVE' ? branchesApi.deactivateBranch(target.id) : branchesApi.activateBranch(target.id),
     onSuccess: (_data, target) => {
-      toast.success(target.status === 'ACTIVE' ? 'Filial faolsizlantirildi' : 'Filial faollashtirildi');
+      toast.success(target.status === 'ACTIVE' ? t('au.branches.toastDeactivated') : t('au.branches.toastActivated'));
       queryClient.invalidateQueries({ queryKey: ['admin', 'branches'] });
       queryClient.invalidateQueries({ queryKey: ['branches'] });
       setStatusTarget(null);
     },
     onError: (err) => {
-      toast.error(getApiError(err).message);
+      toast.error(localizeApiError(getApiError(err).code, t));
       setStatusTarget(null);
     },
   });
@@ -46,10 +52,8 @@ export function BranchesPage() {
     <div className="mx-auto max-w-4xl">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-[var(--text-1)]">Filiallar</h1>
-          <p className="mt-1 text-sm text-[var(--text-2)]">
-            Servis filiallarini boshqarish. Filiallar o'chirilmaydi — faqat faolsizlantiriladi.
-          </p>
+          <h1 className="text-xl font-bold text-[var(--text-1)]">{t('au.branches.title')}</h1>
+          <p className="mt-1 text-sm text-[var(--text-2)]">{t('au.branches.subtitle')}</p>
         </div>
         <Button
           onClick={() => {
@@ -58,7 +62,7 @@ export function BranchesPage() {
           }}
         >
           <Plus className="size-4" />
-          Yangi filial
+          {t('au.branches.new')}
         </Button>
       </div>
 
@@ -69,12 +73,12 @@ export function BranchesPage() {
           </div>
         )}
 
-        {branchesQuery.isError && <Alert tone="error">{getApiError(branchesQuery.error).message}</Alert>}
+        {branchesQuery.isError && <Alert tone="error">{localizeApiError(getApiError(branchesQuery.error).code, t)}</Alert>}
 
         {branchesQuery.data && branchesQuery.data.length === 0 && (
           <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[var(--border-1)] py-16 text-[var(--text-2)]">
             <Building2 className="size-8" />
-            <p className="text-sm">Hozircha filiallar yo'q</p>
+            <p className="text-sm">{t('au.branches.empty')}</p>
           </div>
         )}
 
@@ -91,18 +95,18 @@ export function BranchesPage() {
                 <p className="font-semibold text-[var(--text-1)]">{b.name}</p>
                 {b.status === 'ACTIVE' ? (
                   <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-                    Faol
+                    {t('au.branchStatus.active')}
                   </span>
                 ) : (
                   <span className="rounded-full bg-ink-500/15 px-2.5 py-0.5 text-xs font-semibold text-ink-500">
-                    Faol emas
+                    {t('au.branchStatus.inactive')}
                   </span>
                 )}
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[var(--text-2)]">
                 <span className="inline-flex items-center gap-1.5">
                   <MapPin className="size-3.5" />
-                  {b.region}
+                  {regionLabel(b.region, locale)}
                   {b.address ? ` · ${b.address}` : ''}
                 </span>
                 {b.phone && (
@@ -113,7 +117,7 @@ export function BranchesPage() {
                 )}
                 <span className="inline-flex items-center gap-1.5">
                   <Users className="size-3.5" />
-                  {b.userCount ?? 0} xodim
+                  {t('au.branches.staffCount', { count: b.userCount ?? 0 })}
                 </span>
               </div>
             </div>
@@ -125,19 +129,23 @@ export function BranchesPage() {
                   setEditTarget(b);
                   setFormOpen(true);
                 }}
-                aria-label={`${b.name}ni tahrirlash`}
+                aria-label={t('au.branches.editAria', { name: b.name })}
               >
                 <Pencil className="size-4" />
-                <span className="hidden sm:inline">Tahrirlash</span>
+                <span className="hidden sm:inline">{t('au.action.edit')}</span>
               </Button>
               <Button
                 variant={b.status === 'ACTIVE' ? 'danger-outline' : 'secondary'}
                 onClick={() => setStatusTarget(b)}
-                aria-label={b.status === 'ACTIVE' ? `${b.name}ni faolsizlantirish` : `${b.name}ni faollashtirish`}
+                aria-label={
+                  b.status === 'ACTIVE'
+                    ? t('au.branches.deactivateAria', { name: b.name })
+                    : t('au.branches.activateAria', { name: b.name })
+                }
               >
                 <Power className="size-4" />
                 <span className="hidden sm:inline">
-                  {b.status === 'ACTIVE' ? 'Faolsizlantirish' : 'Faollashtirish'}
+                  {b.status === 'ACTIVE' ? t('au.branches.deactivate') : t('au.branches.activate')}
                 </span>
               </Button>
             </div>
@@ -158,8 +166,8 @@ export function BranchesPage() {
 
       <ConfirmDialog
         open={!!statusTarget}
-        title={statusTarget?.status === 'ACTIVE' ? 'Filialni faolsizlantirish' : 'Filialni faollashtirish'}
-        confirmLabel={statusTarget?.status === 'ACTIVE' ? 'Faolsizlantirish' : 'Faollashtirish'}
+        title={statusTarget?.status === 'ACTIVE' ? t('au.branches.deactivateTitle') : t('au.branches.activateTitle')}
+        confirmLabel={statusTarget?.status === 'ACTIVE' ? t('au.branches.deactivate') : t('au.branches.activate')}
         danger={statusTarget?.status === 'ACTIVE'}
         loading={statusMutation.isPending}
         onConfirm={() => statusTarget && statusMutation.mutate(statusTarget)}
@@ -167,12 +175,11 @@ export function BranchesPage() {
       >
         {statusTarget?.status === 'ACTIVE' ? (
           <>
-            <b>{statusTarget?.name}</b> faolsizlantiriladi: ro'yxatdan o'tish formasida ko'rinmaydi va unga yangi
-            foydalanuvchi biriktirib bo'lmaydi. Mavjud xodimlar va yozuvlar saqlanib qoladi.
+            <b>{statusTarget?.name}</b> {t('au.branches.deactivateBody')}
           </>
         ) : (
           <>
-            <b>{statusTarget?.name}</b> yana faollashtiriladi va foydalanuvchi biriktirish mumkin bo'ladi.
+            <b>{statusTarget?.name}</b> {t('au.branches.activateBody')}
           </>
         )}
       </ConfirmDialog>
@@ -192,6 +199,8 @@ interface BranchFormValues {
  * state comes from defaultValues — no synchronization effects needed.
  */
 function BranchFormModal({ onClose, editBranch }: { onClose: () => void; editBranch: BranchFull | null }) {
+  const t = useT();
+  const { locale } = useLocale();
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
   const isEdit = !!editBranch;
@@ -222,70 +231,70 @@ function BranchFormModal({ onClose, editBranch }: { onClose: () => void; editBra
       return isEdit && editBranch ? branchesApi.updateBranch(editBranch.id, input) : branchesApi.createBranch(input);
     },
     onSuccess: () => {
-      toast.success(isEdit ? "Filial ma'lumotlari yangilandi" : 'Filial yaratildi');
+      toast.success(isEdit ? t('au.branchForm.toastUpdated') : t('au.branchForm.toastCreated'));
       queryClient.invalidateQueries({ queryKey: ['admin', 'branches'] });
       queryClient.invalidateQueries({ queryKey: ['branches'] });
       onClose();
     },
-    onError: (err) => setServerError(getApiError(err).message),
+    onError: (err) => setServerError(localizeApiError(getApiError(err).code, t)),
   });
 
   return (
-    <Modal open onClose={onClose} title={isEdit ? 'Filialni tahrirlash' : 'Yangi filial'}>
+    <Modal open onClose={onClose} title={isEdit ? t('au.branchForm.editTitle') : t('au.branches.new')}>
       <form onSubmit={handleSubmit((v) => mutation.mutate(v))} noValidate className="space-y-4">
         {serverError && <Alert tone="error">{serverError}</Alert>}
 
         <Input
-          label="Filial nomi"
-          placeholder="Masalan: EASY GAS Chilonzor"
+          label={t('au.branchForm.name')}
+          placeholder={t('au.branchForm.namePlaceholder')}
           leftIcon={<Building2 className="size-[18px]" />}
-          error={errors.name?.message}
+          error={fieldError(errors.name?.message, t)}
           {...register('name', {
-            required: 'Filial nomi kiritilishi shart',
-            minLength: { value: 3, message: 'Kamida 3 ta belgi' },
+            required: 'au.branchForm.nameRequired',
+            minLength: { value: 3, message: 'au.branchForm.nameMin' },
           })}
         />
 
         <Select
-          label="Viloyat"
-          error={errors.region?.message}
-          {...register('region', { required: 'Viloyat tanlanishi shart' })}
+          label={t('au.userForm.region')}
+          error={fieldError(errors.region?.message, t)}
+          {...register('region', { required: 'valid.regionRequired' })}
         >
           <option value="" disabled>
-            Viloyatni tanlang
+            {t('au.userForm.regionPlaceholder')}
           </option>
           {REGIONS.map((r) => (
             <option key={r} value={r}>
-              {r}
+              {regionLabel(r, locale)}
             </option>
           ))}
         </Select>
 
         <Input
-          label="Manzil (ixtiyoriy)"
-          placeholder="Ko'cha, tuman"
+          label={t('au.branchForm.address')}
+          placeholder={t('au.branchForm.addressPlaceholder')}
           leftIcon={<MapPin className="size-[18px]" />}
-          error={errors.address?.message}
-          {...register('address', { maxLength: { value: 255, message: 'Manzil juda uzun' } })}
+          error={fieldError(errors.address?.message, t)}
+          {...register('address', { maxLength: { value: 255, message: 'au.branchForm.addressTooLong' } })}
         />
 
         <Input
-          label="Telefon (ixtiyoriy)"
+          label={t('au.branchForm.phone')}
           type="tel"
           placeholder="+998 71 200 00 00"
           leftIcon={<PhoneIcon className="size-[18px]" />}
-          error={errors.phone?.message}
+          error={fieldError(errors.phone?.message, t)}
           {...register('phone', {
-            validate: (v) => !v.trim() || /^[+\d][\d\s\-()]{5,19}$/.test(v.trim()) || "Telefon raqam noto'g'ri formatda",
+            validate: (v) => !v.trim() || /^[+\d][\d\s\-()]{5,19}$/.test(v.trim()) || 'au.branchForm.phoneInvalid',
           })}
         />
 
         <div className="flex justify-end gap-3 pt-1">
           <Button type="button" variant="ghost" onClick={onClose} disabled={mutation.isPending}>
-            Bekor qilish
+            {t('common.cancel')}
           </Button>
           <Button type="submit" loading={mutation.isPending}>
-            {isEdit ? 'Saqlash' : 'Yaratish'}
+            {isEdit ? t('common.save') : t('au.action.create')}
           </Button>
         </div>
       </form>

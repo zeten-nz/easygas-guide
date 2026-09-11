@@ -1,16 +1,23 @@
-# EASY GAS full-stack browser E2E (Phase 10F) — CROSS-REPO, PUBLIC repos.
+# EASY GAS full-stack browser E2E — CROSS-REPO, PUBLIC repos.
 #
-# Both repositories are PUBLIC (zeten-nz/easygas-guide, zeten-nz/easygas-guide-server),
-# so the server checkout uses a tokenless, read-only, shallow HTTPS clone — NO
-# SERVER_REPO_TOKEN, PAT, deploy key, or org secret is required.
+# Both repositories are PUBLIC, so the counterpart checkout is a read-only,
+# tokenless clone via actions/checkout (no PAT / deploy key / org secret).
 #
-# Symmetric strategy: a CLIENT pull request tests the client PR branch against
-# server `main` (the server repo has the mirror workflow: a server PR tests the
-# server PR branch against client `main`). No repository_dispatch is used, so
-# there is no cross-repo trigger loop.
+# TWO deliberately-separate testing dimensions (never conflated):
+#   1. MAIN-COMPATIBILITY (pull_request / push-to-main, or dispatch with the
+#      default server_ref=main): the client is tested against server `main`.
+#      This is the gating check. If the client depends on UNMERGED server work
+#      (a paired feature PR), failures here are EXPECTED and do not mean the
+#      client regressed — they mean "not yet compatible with main".
+#   2. COORDINATED (workflow_dispatch with an explicit non-main server_ref, and
+#      optionally client_ref): the client is tested against a specific, immutable
+#      counterpart commit/branch for dependent-change verification. A green
+#      coordinated run does NOT prove main-compatibility.
 #
-# Runs on pull_request (blocking check) + push to main + manual dispatch (which
-# accepts optional client/server refs for coordinated PR testing).
+# No repository_dispatch is used → no cross-repo trigger loop. Ref inputs are
+# only ever passed to actions/checkout `ref:` (never interpolated into shell), so
+# a ref value cannot inject shell code. workflow_dispatch requires write access,
+# so the refs are not untrusted PR input.
 name: e2e-fullstack
 
 on:
@@ -20,10 +27,10 @@ on:
   workflow_dispatch:
     inputs:
       client_ref:
-        description: "Client ref to test (default: this ref)"
+        description: "Client ref OR full SHA to test (default: this branch / PR)"
         required: false
       server_ref:
-        description: "Server ref to test (default: main)"
+        description: "Server ref OR full SHA to test (default: main = main-compat)"
         required: false
         default: main
 
@@ -31,16 +38,19 @@ permissions:
   contents: read
 
 concurrency:
-  group: e2e-fullstack-${{ github.ref }}
+  group: e2e-fullstack-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
-  SERVER_REPO_URL: https://github.com/zeten-nz/easygas-guide-server.git
-  SERVER_REF: ${{ github.event.inputs.server_ref || 'main' }}
+  SERVER_REPO: zeten-nz/easygas-guide-server
 
 jobs:
   fullstack:
-    name: browser E2E (client PR × server main)
+    # NOTE: the check-run name must stay stable for branch-protection required
+    # checks. On pull_request, inputs are null → "server main", so the gating
+    # check keeps its historical name; a dispatch with a different server_ref
+    # shows that ref instead of lying about "main".
+    name: browser E2E (client PR × server ${{ github.event.inputs.server_ref || 'main' }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -78,19 +88,103 @@ jobs:
       TRUST_PROXY_HOPS: "0"
       E2E_API_PORT: "4000"
     steps:
+      - name: Resolve refs + testing mode
+        id: refs
+        env:
+          EVENT: ${{ github.event_name }}
+          IN_CLIENT_REF: ${{ github.event.inputs.client_ref }}
+          IN_SERVER_REF: ${{ github.event.inputs.server_ref }}
+        run: |
+          set -euo pipefail
+          # Client: on manual dispatch honour client_ref; otherwise let
+          # actions/checkout use its event default (PR merge commit / pushed ref).
+          CLIENT_REF=""
+          if [ "$EVENT" = "workflow_dispatch" ] && [ -n "${IN_CLIENT_REF:-}" ]; then
+            CLIENT_REF="$IN_CLIENT_REF"
+          fi
+          # Server: default main. The DEPENDENCY dimension is the server ref.
+          SERVER_REF="${IN_SERVER_REF:-main}"
+          if [ "$SERVER_REF" = "main" ]; then MODE="main-compat"; else MODE="coordinated"; fi
+          {
+            printf 'client_ref=%s\n' "$CLIENT_REF"
+            printf 'server_ref=%s\n' "$SERVER_REF"
+            printf 'mode=%s\n' "$MODE"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Checkout client (this repo)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: client
+          # Empty ref → event default (PR test-merge commit, or the pushed ref).
+          ref: ${{ steps.refs.outputs.client_ref }}
           persist-credentials: false
-      - name: Clone server (public, tokenless, read-only)
-        run: git clone --depth 1 --branch "$SERVER_REF" "$SERVER_REPO_URL" server
-      - name: Log the exact client + server refs/SHAs under test
+
+      - name: Checkout server (counterpart, public, read-only)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ env.SERVER_REPO }}
+          # Honours a branch, tag, OR full commit SHA (unlike `git clone --branch`).
+          ref: ${{ steps.refs.outputs.server_ref }}
+          path: server
+          persist-credentials: false
+
+      - name: Verify checkouts + report the tested pair
+        id: verify
+        env:
+          EVENT: ${{ github.event_name }}
+          MODE: ${{ steps.refs.outputs.mode }}
+          REQ_SERVER_REF: ${{ steps.refs.outputs.server_ref }}
+          REQ_CLIENT_REF: ${{ steps.refs.outputs.client_ref }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          echo "client ref : ${{ github.ref }} (event: ${{ github.event_name }})"
-          echo "client SHA : $(git -C client rev-parse HEAD)"
-          echo "server ref : $SERVER_REF"
-          echo "server SHA : $(git -C server rev-parse HEAD)"
+          set -euo pipefail
+          # Early, clear diagnostics if either checkout did not resolve.
+          test -f client/package.json || { echo "::error::client checkout invalid (no package.json)"; exit 1; }
+          test -f server/package.json || { echo "::error::server checkout invalid for ref '${REQ_SERVER_REF}' — is it a real branch/tag/SHA of ${SERVER_REPO}?"; exit 1; }
+
+          CLIENT_SHA="$(git -C client rev-parse HEAD)"
+          SERVER_SHA="$(git -C server rev-parse HEAD)"
+
+          # Report whether the client checkout is the PR head or the synthetic merge commit.
+          CHECKOUT_KIND="ref/branch/SHA"
+          if [ "$EVENT" = "pull_request" ]; then
+            if [ -n "${PR_HEAD_SHA:-}" ] && [ "$CLIENT_SHA" = "$PR_HEAD_SHA" ]; then
+              CHECKOUT_KIND="PR head"
+            else
+              CHECKOUT_KIND="synthetic PR merge commit (head ${PR_HEAD_SHA:-unknown})"
+            fi
+          fi
+
+          # If a specific full SHA was requested, assert the checkout matches it.
+          case "$REQ_SERVER_REF" in
+            *[!0-9a-f]* | "" ) : ;;  # not a bare hex SHA — skip strict match
+            * ) if [ "${#REQ_SERVER_REF}" -ge 7 ] && [ "${SERVER_SHA#"${REQ_SERVER_REF}"}" = "$SERVER_SHA" ]; then
+                  echo "::warning::server checkout $SERVER_SHA does not start with requested SHA $REQ_SERVER_REF" ; fi ;;
+          esac
+
+          {
+            echo "## Full-stack E2E — tested pair"
+            echo ""
+            echo "| side | repo | requested ref | checked-out SHA |"
+            echo "|------|------|---------------|-----------------|"
+            echo "| client | ${GITHUB_REPOSITORY} | ${REQ_CLIENT_REF:-<event default>} | \`${CLIENT_SHA}\` |"
+            echo "| server | ${SERVER_REPO} | ${REQ_SERVER_REF} | \`${SERVER_SHA}\` |"
+            echo ""
+            echo "- **mode:** ${MODE}"
+            echo "- **client checkout:** ${CHECKOUT_KIND}"
+            if [ "$MODE" = "main-compat" ]; then
+              echo "- ⚠️ **Main-compatibility check** (server = \`main\`). If the client depends on unmerged server changes, failures here are the expected dependency gap — verify the pair with a coordinated dispatch (\`server_ref\` = the paired server commit). This result must NOT be forced green by excluding scenarios."
+            else
+              echo "- ✅ **Coordinated run** against an explicit server ref for dependent-change testing. A green coordinated run does NOT prove main-compatibility — the \`main\` check is tracked separately."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "client ref : ${REQ_CLIENT_REF:-<event default>} (event: ${EVENT})"
+          echo "client SHA : ${CLIENT_SHA} (${CHECKOUT_KIND})"
+          echo "server ref : ${REQ_SERVER_REF}"
+          echo "server SHA : ${SERVER_SHA}"
+          echo "mode       : ${MODE}"
+
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
@@ -136,7 +230,7 @@ jobs:
         if: failure() || cancelled()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: e2e-artifacts-client-pr
+          name: e2e-artifacts-client-${{ github.run_id }}
           path: |
             client/playwright-report
             client/test-results

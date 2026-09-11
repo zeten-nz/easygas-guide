@@ -15,6 +15,8 @@ import * as usersApi from '../../api/users.api';
 import { getApiError } from '../../api/client';
 import { can } from '../../lib/permissions';
 import type { UserDetail } from '../../types/auth';
+import { useT } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
 
 /**
  * §C employee profile. Authorization is enforced on the SERVER (GET /users/:id):
@@ -23,6 +25,7 @@ import type { UserDetail } from '../../types/auth';
  * existing secure modals (edit, block/unblock, one-time temporary password reset).
  */
 export function UserDetailPage() {
+  const t = useT();
   const { id } = useParams();
   const userId = Number(id);
   const { user: actor } = useAuth();
@@ -45,12 +48,12 @@ export function UserDetailPage() {
   const blockMutation = useMutation({
     mutationFn: (u: UserDetail) => (u.status === 'ACTIVE' ? usersApi.blockUser(u.id) : usersApi.unblockUser(u.id)),
     onSuccess: (_d, u) => {
-      toast.success(u.status === 'ACTIVE' ? 'Xodim bloklandi' : 'Xodim blokdan chiqarildi');
+      toast.success(u.status === 'ACTIVE' ? t('au.users.toast.blocked') : t('au.users.toast.unblocked'));
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       setBlockOpen(false);
     },
     onError: (err) => {
-      toast.error(getApiError(err).message);
+      toast.error(localizeApiError(getApiError(err).code, t));
       setBlockOpen(false);
     },
   });
@@ -63,7 +66,7 @@ export function UserDetailPage() {
       className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--text-2)] transition-colors hover:text-[var(--text-1)]"
     >
       <ArrowLeft className="size-4" />
-      Xodimlar
+      {t('au.users.title')}
     </Link>
   );
 
@@ -88,19 +91,23 @@ export function UserDetailPage() {
           <UserX className="size-8 text-[var(--text-3)]" />
           <div>
             <p className="font-medium text-[var(--text-1)]">
-              {notFound ? 'Xodim topilmadi' : forbidden ? "Ruxsat yo'q" : 'Xatolik yuz berdi'}
+              {notFound
+                ? t('au.userDetail.notFoundTitle')
+                : forbidden
+                  ? t('au.userDetail.forbiddenTitle')
+                  : t('au.userDetail.errorTitle')}
             </p>
             <p className="mt-1 text-sm">
               {notFound
-                ? "Bunday xodim mavjud emas yoki u sizning ko'rish doirangizdan tashqarida."
+                ? t('au.userDetail.notFoundBody')
                 : forbidden
-                  ? "Bu xodim ma'lumotlarini ko'rishga ruxsatingiz yo'q."
-                  : getApiError(query.error).message}
+                  ? t('au.userDetail.forbiddenBody')
+                  : localizeApiError(getApiError(query.error).code, t)}
             </p>
           </div>
           {!notFound && !forbidden && (
             <Button variant="secondary" size="sm" onClick={() => query.refetch()}>
-              Qayta urinish
+              {t('common.retry')}
             </Button>
           )}
         </div>
@@ -127,19 +134,19 @@ export function UserDetailPage() {
           {showEdit && (
             <Button variant="secondary" size="md" onClick={() => setFormOpen(true)}>
               <Pencil className="size-4" />
-              Tahrirlash
+              {t('au.action.edit')}
             </Button>
           )}
           {showReset && (
             <Button variant="secondary" size="md" onClick={() => setResetOpen(true)}>
               <KeyRound className="size-4" />
-              Vaqtinchalik parol
+              {t('au.users.tempPassword')}
             </Button>
           )}
           {showBlock && (
             <Button variant={detail.status === 'ACTIVE' ? 'danger-outline' : 'secondary'} size="md" onClick={() => setBlockOpen(true)}>
               {detail.status === 'ACTIVE' ? <Lock className="size-4" /> : <LockOpen className="size-4" />}
-              {detail.status === 'ACTIVE' ? 'Bloklash' : 'Blokdan chiqarish'}
+              {detail.status === 'ACTIVE' ? t('au.users.block') : t('au.users.unblock')}
             </Button>
           )}
         </div>
@@ -166,8 +173,8 @@ export function UserDetailPage() {
       )}
       <ConfirmDialog
         open={blockOpen}
-        title={detail.status === 'ACTIVE' ? 'Xodimni bloklash' : 'Blokdan chiqarish'}
-        confirmLabel={detail.status === 'ACTIVE' ? 'Bloklash' : 'Blokdan chiqarish'}
+        title={detail.status === 'ACTIVE' ? t('au.users.blockTitle') : t('au.users.unblock')}
+        confirmLabel={detail.status === 'ACTIVE' ? t('au.users.block') : t('au.users.unblock')}
         danger={detail.status === 'ACTIVE'}
         loading={blockMutation.isPending}
         onConfirm={() => blockMutation.mutate(detail)}
@@ -178,14 +185,14 @@ export function UserDetailPage() {
             <b>
               {detail.firstName} {detail.lastName}
             </b>{' '}
-            bloklanadi: barcha faol sessiyalari darhol bekor qilinadi va tizimga kira olmaydi.
+            {t('au.userDetail.blockBody')}
           </>
         ) : (
           <>
             <b>
               {detail.firstName} {detail.lastName}
             </b>{' '}
-            blokdan chiqariladi va yana tizimga kira oladi.
+            {t('au.users.unblockBody')}
           </>
         )}
       </ConfirmDialog>

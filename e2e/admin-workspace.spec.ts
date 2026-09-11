@@ -99,17 +99,18 @@ test.describe('admin workspace', () => {
 
     // Scope to the synthetic branch → a deterministic total of 55.
     await page.getByLabel("Filial bo'yicha filtr").selectOption({ label: BRANCH_NAME });
-    await expect(page.getByText(/Jami\s*55\s*xodim/)).toBeVisible();
+    // Count-agnostic pagination summary: "Jami: {total} · {from}–{to}".
+    await expect(page.getByText(/Jami:\s*55\s*·\s*1–25/)).toBeVisible();
 
     // Page 2 via next.
     await page.getByLabel('Keyingi sahifa').click();
     await expect(page).toHaveURL(/page=2/);
-    await expect(page.getByText(/26–50 ko'rsatilmoqda/)).toBeVisible();
+    await expect(page.getByText(/Jami:\s*55\s*·\s*26–50/)).toBeVisible();
 
     // Page size 50 → two pages, resets to page 1.
     await page.getByLabel(/qatorlar soni/i).selectOption('50');
     await expect(page).toHaveURL(/pageSize=50/);
-    await expect(page.getByText(/1–50 ko'rsatilmoqda/)).toBeVisible();
+    await expect(page.getByText(/Jami:\s*55\s*·\s*1–50/)).toBeVisible();
 
     // Open an employee's profile by clicking their name (the profile heading is the
     // same employee — asserted by the shared "Xodim AW" prefix, robust to which row

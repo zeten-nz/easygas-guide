@@ -8,6 +8,8 @@ import { Spinner } from '../../components/ui/Spinner';
 import { JobStatusBadge } from './JobStatusBadge';
 import { myJobs } from '../../api/safety.api';
 import { getApiError } from '../../api/client';
+import { useT } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
 
 interface MyJob {
   id: number;
@@ -24,6 +26,7 @@ interface MyJob {
  * (no cross-branch data). Loading / empty / error+retry states.
  */
 export function MyJobsPage() {
+  const t = useT();
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const pageSize = 20;
@@ -41,8 +44,8 @@ export function MyJobsPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-4">
-        <h1 className="text-xl font-bold text-[var(--text-1)]">Menga biriktirilgan ishlar</h1>
-        <p className="mt-1 text-sm text-[var(--text-2)]">Siz mas'ul texnik sifatida biriktirilgan ishlar</p>
+        <h1 className="text-xl font-bold text-[var(--text-1)]">{t('ja.myjobs.title')}</h1>
+        <p className="mt-1 text-sm text-[var(--text-2)]">{t('ja.myjobs.subtitle')}</p>
       </div>
 
       {query.isLoading && (
@@ -54,9 +57,9 @@ export function MyJobsPage() {
       {query.isError && (
         <Alert tone="error">
           <div className="flex items-center justify-between gap-3">
-            <span>{getApiError(query.error).message}</span>
+            <span>{localizeApiError(getApiError(query.error).code, t)}</span>
             <Button variant="secondary" onClick={() => query.refetch()}>
-              Qayta urinish
+              {t('common.retry')}
             </Button>
           </div>
         </Alert>
@@ -65,12 +68,12 @@ export function MyJobsPage() {
       {query.isSuccess && items.length === 0 && (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-1)] py-16 text-center">
           <Briefcase className="mx-auto size-8 text-[var(--text-3)]" aria-hidden />
-          <p className="mt-3 text-sm text-[var(--text-2)]">Sizga hali ish biriktirilmagan.</p>
+          <p className="mt-3 text-sm text-[var(--text-2)]">{t('ja.myjobs.empty')}</p>
         </div>
       )}
 
       {query.isSuccess && items.length > 0 && (
-        <ul className="space-y-2" aria-label="Biriktirilgan ishlar">
+        <ul className="space-y-2" aria-label={t('ja.myjobs.listAria')}>
           {items.map((j) => (
             <li key={j.id}>
               <button
@@ -83,7 +86,7 @@ export function MyJobsPage() {
                     <span className="font-semibold text-[var(--text-1)]">{j.plate_number}</span>
                     {j.assignment_status === 'LEGACY_UNASSIGNED' && (
                       <span className="rounded bg-[var(--warning-bg,#fef3c7)] px-1.5 py-0.5 text-xs font-medium text-[var(--warning-fg,#92400e)]">
-                        Eski (biriktirilmagan)
+                        {t('ja.myjobs.legacyBadge')}
                       </span>
                     )}
                   </div>
@@ -101,13 +104,13 @@ export function MyJobsPage() {
 
       {totalPages > 1 && (
         <div className="mt-4 flex items-center justify-center gap-2">
-          <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label="Oldingi">
+          <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label={t('ja.myjobs.prev')}>
             <ChevronLeft className="size-4" />
           </Button>
           <span className="text-sm text-[var(--text-2)]">
             {page} / {totalPages}
           </span>
-          <Button variant="secondary" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} aria-label="Keyingi">
+          <Button variant="secondary" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} aria-label={t('ja.myjobs.next')}>
             <ChevronRight className="size-4" />
           </Button>
         </div>

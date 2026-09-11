@@ -12,10 +12,13 @@ import * as customersApi from '../../api/customers.api';
 import { getApiError } from '../../api/client';
 import { can } from '../../lib/permissions';
 import { displayPhone } from '../../lib/phone';
+import { useT } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
 
 export function CustomersPage() {
   const { user: actor } = useAuth();
   const navigate = useNavigate();
+  const t = useT();
 
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -49,24 +52,24 @@ export function CustomersPage() {
     <div className="mx-auto max-w-4xl">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-[var(--text-1)]">Mijozlar</h1>
-          <p className="mt-1 text-sm text-[var(--text-2)]">Mijozlar va ularning avtomobillari</p>
+          <h1 className="text-xl font-bold text-[var(--text-1)]">{t('m.customers.title')}</h1>
+          <p className="mt-1 text-sm text-[var(--text-2)]">{t('m.customers.subtitle')}</p>
         </div>
         {can(actor, 'customers.manage') && (
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />
-            Yangi mijoz
+            {t('m.customers.new')}
           </Button>
         )}
       </div>
 
       <div className="mt-5">
         <Input
-          placeholder="Ism yoki telefon bo'yicha qidirish..."
+          placeholder={t('m.customers.searchPlaceholder')}
           leftIcon={<Search className="size-[18px]" />}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          aria-label="Mijoz qidirish"
+          aria-label={t('m.customers.searchAria')}
         />
       </div>
 
@@ -77,12 +80,14 @@ export function CustomersPage() {
           </div>
         )}
 
-        {customersQuery.isError && <Alert tone="error">{getApiError(customersQuery.error).message}</Alert>}
+        {customersQuery.isError && (
+          <Alert tone="error">{localizeApiError(getApiError(customersQuery.error).code, t)}</Alert>
+        )}
 
         {customersQuery.data && customersQuery.data.customers.length === 0 && (
           <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[var(--border-1)] py-16 text-[var(--text-2)]">
             <Users className="size-8" />
-            <p className="text-sm">{debouncedSearch ? 'Mijoz topilmadi' : "Hozircha mijozlar yo'q"}</p>
+            <p className="text-sm">{debouncedSearch ? t('m.customers.notFound') : t('m.customers.empty')}</p>
           </div>
         )}
 
@@ -111,17 +116,17 @@ export function CustomersPage() {
       {total > 25 && (
         <div className="mt-5 flex items-center justify-between">
           <p className="text-sm text-[var(--text-2)]">
-            Jami {total} ta · {page}/{totalPages}-sahifa
+            {t('m.list.pageSummary', { total, page, totalPages })}
           </p>
           <div className="flex gap-2">
-            <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label="Oldingi sahifa">
+            <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label={t('ui.pagination.prev')}>
               <ChevronLeft className="size-4" />
             </Button>
             <Button
               variant="secondary"
               disabled={page >= totalPages}
               onClick={() => setPage((p) => p + 1)}
-              aria-label="Keyingi sahifa"
+              aria-label={t('ui.pagination.next')}
             >
               <ChevronRight className="size-4" />
             </Button>

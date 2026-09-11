@@ -1,6 +1,7 @@
 import { test, expect } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderWithProviders } from '../../test/utils';
+import { I18nProvider } from '../../i18n/i18n';
 import { CompletionReadinessPanel } from './CompletionReadinessPanel';
 import type { CompletionReadiness } from './completion-blockers';
 
@@ -11,9 +12,9 @@ const blocked: CompletionReadiness = {
 };
 
 test('renders each condition with a TEXT status (not colour alone) and server blockers', () => {
-  renderWithProviders(<CompletionReadinessPanel readiness={blocked} />);
-  // Blocking reason from the server is shown, tagged by code.
-  const reason = screen.getByText('Hal qilinmagan kritik xavf');
+  renderWithProviders(<I18nProvider><CompletionReadinessPanel readiness={blocked} /></I18nProvider>);
+  // Blocking reason is shown localized-by-code (not the raw server message), tagged by code.
+  const reason = screen.getByText('Kritik xavf hal etilmagan');
   expect(reason).toBeInTheDocument();
   expect(reason).toHaveAttribute('data-code', 'CRITICAL_RISK_UNRESOLVED');
   // Each condition row shows a text status ("OK"/"kerak"), not just a colour.
@@ -28,7 +29,7 @@ test('shows a ready state with no blocking reasons when the server says canCompl
     reasons: [],
     conditions: { checklist: true, stops: true, photos: true, measurements: true, risks: true, signature: true },
   };
-  renderWithProviders(<CompletionReadinessPanel readiness={ready} />);
+  renderWithProviders(<I18nProvider><CompletionReadinessPanel readiness={ready} /></I18nProvider>);
   expect(screen.getByText('Yakunlashga tayyor')).toBeInTheDocument();
   expect(screen.queryByLabelText("To'siqlar")).not.toBeInTheDocument();
 });

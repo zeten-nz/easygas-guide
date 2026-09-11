@@ -4,6 +4,8 @@ import { Camera, ImageOff, Loader2, RefreshCw } from 'lucide-react';
 import * as jobsApi from '../../api/jobs.api';
 import type { JobPhoto } from '../../api/jobs.api';
 import { getApiError } from '../../api/client';
+import { useT, type TFunc } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
 import { Button } from '../../components/ui/Button';
 import { Alert } from '../../components/ui/Alert';
 import { RoleBadge, EvidenceMeta } from './evidence-badges';
@@ -28,6 +30,7 @@ interface Group {
 }
 
 export function JobEvidenceGallery({ jobId }: { jobId: number }) {
+  const t = useT();
   const [limit, setLimit] = useState(60);
   const [viewer, setViewer] = useState<number | null>(null);
 
@@ -41,7 +44,7 @@ export function JobEvidenceGallery({ jobId }: { jobId: number }) {
   const photos = useMemo(() => data?.photos ?? [], [data?.photos]);
 
   // Accessible photos in display order = the viewer's navigation context.
-  const grouped = useMemo(() => groupPhotos(photos, data?.cycles ?? []), [photos, data?.cycles]);
+  const grouped = useMemo(() => groupPhotos(photos, data?.cycles ?? [], t), [photos, data?.cycles, t]);
   const accessible = useMemo(() => grouped.flatMap((g) => g.photos).filter(isAccessible), [grouped]);
   const accessibleIndex = useMemo(() => new Map(accessible.map((p, i) => [p.id, i])), [accessible]);
 
@@ -49,20 +52,20 @@ export function JobEvidenceGallery({ jobId }: { jobId: number }) {
     <section className="rounded-3xl border border-[var(--border-1)] bg-[var(--surface)] p-5 sm:p-6" aria-labelledby="evidence-heading">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 id="evidence-heading" className="flex items-center gap-2 text-lg font-bold text-[var(--text-1)]">
-          <Camera className="size-5 text-[var(--text-2)]" aria-hidden /> Fotolar
+          <Camera className="size-5 text-[var(--text-2)]" aria-hidden /> {t('jb.gallery.title')}
         </h2>
-        {data && data.total > 0 && <span className="text-sm text-[var(--text-3)]">Jami {data.total} ta</span>}
+        {data && data.total > 0 && <span className="text-sm text-[var(--text-3)]">{t('jb.gallery.total', { total: data.total })}</span>}
       </div>
 
       {query.isLoading && (
-        <div className="flex items-center justify-center gap-2 py-10 text-[var(--text-3)]"><Loader2 className="size-5 animate-spin" /> Yuklanmoqda…</div>
+        <div className="flex items-center justify-center gap-2 py-10 text-[var(--text-3)]"><Loader2 className="size-5 animate-spin" /> {t('common.loading')}</div>
       )}
 
       {query.isError && (
         <Alert tone="error">
           <div className="flex items-center justify-between gap-3">
-            <span>Fotolarni yuklab bo'lmadi: {getApiError(query.error).message}</span>
-            <Button size="sm" variant="secondary" onClick={() => query.refetch()}><RefreshCw className="size-4" /> Qayta urinish</Button>
+            <span>{t('jb.gallery.loadError')}: {localizeApiError(getApiError(query.error).code, t)}</span>
+            <Button size="sm" variant="secondary" onClick={() => query.refetch()}><RefreshCw className="size-4" /> {t('common.retry')}</Button>
           </div>
         </Alert>
       )}
@@ -70,7 +73,7 @@ export function JobEvidenceGallery({ jobId }: { jobId: number }) {
       {query.isSuccess && photos.length === 0 && (
         <div className="flex flex-col items-center gap-2 py-10 text-center text-[var(--text-3)]">
           <ImageOff className="size-8" aria-hidden />
-          <p>Bu ish uchun foto dalillar mavjud emas.</p>
+          <p>{t('jb.gallery.empty')}</p>
         </div>
       )}
 
@@ -100,7 +103,7 @@ export function JobEvidenceGallery({ jobId }: { jobId: number }) {
       {query.isSuccess && data && data.total > photos.length && (
         <div className="mt-2 flex justify-center">
           <Button variant="secondary" size="sm" loading={query.isFetching} onClick={() => setLimit((l) => l + 60)}>
-            Yana yuklash ({photos.length} / {data.total})
+            {t('jb.gallery.loadMore', { have: photos.length, total: data.total })}
           </Button>
         </div>
       )}
@@ -113,12 +116,13 @@ export function JobEvidenceGallery({ jobId }: { jobId: number }) {
 }
 
 function PhotoTile({ photo, jobId, onOpen }: { photo: JobPhoto; jobId: number; onOpen: () => void }) {
+  const t = useT();
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   if (!isAccessible(photo)) {
     // Not real, accessible evidence — show the state honestly; not clickable.
     return (
-      <div className="flex aspect-square items-center justify-center bg-[var(--surface-2)] text-center text-[var(--text-3)]" aria-label={`Ko'rib bo'lmaydi: ${photo.role}`}>
+      <div className="flex aspect-square items-center justify-center bg-[var(--surface-2)] text-center text-[var(--text-3)]" aria-label={t('jb.gallery.notViewable', { role: photo.role })}>
         <ImageOff className="size-7" aria-hidden />
       </div>
     );
@@ -127,7 +131,7 @@ function PhotoTile({ photo, jobId, onOpen }: { photo: JobPhoto; jobId: number; o
     <button
       type="button"
       onClick={onOpen}
-      aria-label={`Rasmni ochish — ${photo.stepName}, urinish ${photo.attempt}`}
+      aria-label={t('jb.gallery.openPhoto', { step: photo.stepName, attempt: photo.attempt })}
       className="relative block aspect-square w-full overflow-hidden bg-[var(--surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60"
     >
       {!loaded && !failed && <span className="absolute inset-0 flex items-center justify-center text-[var(--text-3)]"><Loader2 className="size-5 animate-spin" /></span>}
@@ -136,7 +140,7 @@ function PhotoTile({ photo, jobId, onOpen }: { photo: JobPhoto; jobId: number; o
       ) : (
         <img
           src={jobsApi.stepPhotoUrl(jobId, photo.jobStepId, photo.id)}
-          alt={`${photo.stepName} — urinish ${photo.attempt}`}
+          alt={t('jb.gallery.tileAlt', { step: photo.stepName, attempt: photo.attempt })}
           loading="lazy"
           onLoad={() => setLoaded(true)}
           onError={() => setFailed(true)}
@@ -149,7 +153,7 @@ function PhotoTile({ photo, jobId, onOpen }: { photo: JobPhoto; jobId: number; o
 }
 
 /** Groups by completed cycle (snapshot history) then a current/other bucket. */
-function groupPhotos(photos: JobPhoto[], cycles: { cycle: number }[]): Group[] {
+function groupPhotos(photos: JobPhoto[], cycles: { cycle: number }[], t: TFunc): Group[] {
   const byCycle = new Map<number, JobPhoto[]>();
   const other: JobPhoto[] = [];
   for (const p of photos) {
@@ -160,13 +164,13 @@ function groupPhotos(photos: JobPhoto[], cycles: { cycle: number }[]): Group[] {
   const groups: Group[] = [];
   if (other.length > 0) {
     other.sort(sortStep);
-    groups.push({ key: 'current', title: 'Joriy va boshqa dalillar', subtitle: 'joriy tsikl / eskirgan urinishlar', photos: other });
+    groups.push({ key: 'current', title: t('jb.gallery.currentGroup'), subtitle: t('jb.gallery.currentGroupSub'), photos: other });
   }
   const completedCycles = [...byCycle.keys()].sort((a, b) => b - a); // latest completed first
   const total = cycles.length;
   for (const cyc of completedCycles) {
     const list = byCycle.get(cyc)!.sort(sortStep);
-    groups.push({ key: `cycle-${cyc}`, title: `${cyc}-tsikl (yakunlangan)`, subtitle: total > 1 ? `${total} tsikldan biri` : undefined, photos: list });
+    groups.push({ key: `cycle-${cyc}`, title: t('jb.gallery.cycleCompleted', { cycle: cyc }), subtitle: total > 1 ? t('jb.gallery.cycleOneOf', { total }) : undefined, photos: list });
   }
   return groups;
 }

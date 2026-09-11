@@ -9,6 +9,9 @@ import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { RefCombobox } from '../../components/catalog/RefCombobox';
 import { getApiError } from '../../api/client';
+import { useT } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
+import { fieldError } from '../../i18n/form';
 import * as catalogApi from '../../api/catalog.api';
 import { somToMinor, minorToSom } from '../../lib/money';
 import type { Service } from '../../types/catalog';
@@ -25,6 +28,7 @@ interface FormValues {
 }
 
 export function ServiceFormModal({ editService, onClose }: { editService: Service | null; onClose: () => void }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const isEdit = !!editService;
   const [serverError, setServerError] = useState<string | null>(null);
@@ -68,22 +72,22 @@ export function ServiceFormModal({ editService, onClose }: { editService: Servic
         : catalogApi.createService(base);
     },
     onSuccess: () => {
-      toast.success(isEdit ? 'Xizmat yangilandi' : 'Xizmat yaratildi');
+      toast.success(isEdit ? t('cat.service.toast.updated') : t('cat.service.toast.created'));
       queryClient.invalidateQueries({ queryKey: ['catalog'] });
       onClose();
     },
-    onError: (err) => setServerError(getApiError(err).message),
+    onError: (err) => setServerError(localizeApiError(getApiError(err).code, t)),
   });
 
   return (
     <Modal
       open
       onClose={onClose}
-      title={isEdit ? 'Xizmatni tahrirlash' : 'Yangi xizmat'}
+      title={isEdit ? t('cat.service.edit.title') : t('cat.service.new')}
       footer={
         <div className="flex justify-end gap-3">
-          <Button type="button" variant="ghost" onClick={onClose} disabled={mutation.isPending}>Bekor qilish</Button>
-          <Button type="submit" form="service-form" loading={mutation.isPending}>{isEdit ? 'Saqlash' : 'Yaratish'}</Button>
+          <Button type="button" variant="ghost" onClick={onClose} disabled={mutation.isPending}>{t('common.cancel')}</Button>
+          <Button type="submit" form="service-form" loading={mutation.isPending}>{isEdit ? t('common.save') : t('cat.action.create')}</Button>
         </div>
       }
     >
@@ -91,7 +95,7 @@ export function ServiceFormModal({ editService, onClose }: { editService: Servic
         id="service-form"
         onSubmit={handleSubmit((v) => {
           if (categoryId == null) {
-            setCategoryError('Kategoriya tanlanishi shart');
+            setCategoryError(t('cat.valid.categoryRequired'));
             return;
           }
           mutation.mutate(v);
@@ -101,13 +105,13 @@ export function ServiceFormModal({ editService, onClose }: { editService: Servic
       >
         {serverError && <Alert tone="error">{serverError}</Alert>}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Input label="Kod" error={errors.code?.message} {...register('code', { required: 'Kod kiritilishi shart' })} />
-          <Input label="Nomi" error={errors.name?.message} {...register('name', { required: 'Nomi kiritilishi shart' })} />
+          <Input label={t('cat.field.code')} error={fieldError(errors.code?.message, t)} {...register('code', { required: 'cat.valid.codeRequired' })} />
+          <Input label={t('cat.field.name')} error={fieldError(errors.name?.message, t)} {...register('name', { required: 'cat.valid.nameRequired' })} />
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <RefCombobox
             kind="service-categories"
-            label="Kategoriya"
+            label={t('cat.field.category')}
             value={categoryId}
             onChange={(v) => {
               setCategoryId(v);
@@ -115,22 +119,22 @@ export function ServiceFormModal({ editService, onClose }: { editService: Servic
             }}
             error={categoryError}
           />
-          <Input label="Davomiyligi (daqiqa, ixtiyoriy)" type="number" min={0} {...register('durationMinutes')} />
+          <Input label={t('cat.form.durationLabel')} type="number" min={0} {...register('durationMinutes')} />
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Input label="Narx (so'm) — bo'sh = noma'lum" type="number" min={0} {...register('price', { validate: (v) => v.trim() === '' || Number(v) >= 0 || "Narx manfiy bo'lmasin" })} />
-          <Select label="Narx asosi" {...register('priceBasis')}>
-            <option value="UNKNOWN">Noma'lum</option>
-            <option value="NET">Soliqsiz (NET)</option>
-            <option value="GROSS">Soliq bilan (GROSS)</option>
+          <Input label={t('cat.form.priceService')} type="number" min={0} {...register('price', { validate: (v) => v.trim() === '' || Number(v) >= 0 || 'cat.valid.priceNotNegative' })} />
+          <Select label={t('cat.field.priceBasis')} {...register('priceBasis')}>
+            <option value="UNKNOWN">{t('cat.priceBasis.unknown')}</option>
+            <option value="NET">{t('cat.priceBasis.net')}</option>
+            <option value="GROSS">{t('cat.priceBasis.gross')}</option>
           </Select>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Input label="Soliq stavkasi (%, ixtiyoriy)" type="number" min={0} step="0.01" placeholder="Masalan: 12" {...register('taxPercent')} />
-          <Input label="Soliq bilan narx (so'm, ixtiyoriy)" type="number" min={0} {...register('priceInclusive')} />
+          <Input label={t('cat.form.taxRateLabel')} type="number" min={0} step="0.01" placeholder={t('cat.form.taxPlaceholder')} {...register('taxPercent')} />
+          <Input label={t('cat.form.priceInclusiveLabel')} type="number" min={0} {...register('priceInclusive')} />
         </div>
-        <p className="text-xs text-[var(--text-3)]">Soliq siyosati universal emas — faqat aniq bo'lsa kiriting.</p>
-        {isEdit && <Input label="Narx o'zgarishi sababi (ixtiyoriy)" placeholder="Narx o'zgarsa, tarixda saqlanadi" {...register('priceReason')} />}
+        <p className="text-xs text-[var(--text-3)]">{t('cat.form.taxNote')}</p>
+        {isEdit && <Input label={t('cat.form.priceReasonLabel')} placeholder={t('cat.form.priceReasonPlaceholder')} {...register('priceReason')} />}
       </form>
     </Modal>
   );
