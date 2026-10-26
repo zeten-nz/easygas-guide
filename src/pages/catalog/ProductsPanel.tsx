@@ -99,7 +99,7 @@ export function ProductsPanel() {
   return (
     <div>
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <p className="text-sm text-[var(--text-2)]">Mahsulotlar narx bazasi. Narxlar tasdiqlangan biznes narxlari hisoblanadi.</p>
+        <p className="text-sm text-[var(--text-2)]">Mahsulotlar narx bazasi. Import qilingan narxlar boshlang'ich — tasdiqlanishi kerak; har bir narxning manbasi ko'rsatiladi.</p>
         {canManage && (
           <Button
             onClick={() => {
