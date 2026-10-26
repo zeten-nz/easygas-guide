@@ -14,6 +14,10 @@ import { fetchBranches } from '../../api/branches.api';
 import { getApiError } from '../../api/client';
 import { formatNationalPhone, toE164 } from '../../lib/phone';
 import { REGIONS } from '../../lib/regions';
+import { useT, useLocale } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
+import { fieldError } from '../../i18n/form';
+import { regionLabel } from '../../i18n/labels';
 
 interface FormValues {
   firstName: string;
@@ -27,7 +31,9 @@ interface FormValues {
 }
 
 export function RegisterPage() {
-  const [serverError, setServerError] = useState<string | null>(null);
+  const t = useT();
+  const { locale } = useLocale();
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
   const branchesQuery = useQuery({ queryKey: ['branches'], queryFn: fetchBranches });
@@ -54,18 +60,18 @@ export function RegisterPage() {
   const registerMutation = useMutation({
     mutationFn: authApi.register,
     onSuccess: () => setSubmitted(true),
-    onError: (err) => setServerError(getApiError(err).message),
+    onError: (err) => setErrorCode(getApiError(err).code ?? 'UNKNOWN'),
   });
 
   const onSubmit = (values: FormValues) => {
-    setServerError(null);
+    setErrorCode(null);
     const phone = toE164(values.phone);
     if (!phone) return;
     registerMutation.mutate({
       firstName: values.firstName.trim(),
       lastName: values.lastName.trim(),
       phone,
-      region: values.region,
+      region: values.region, // stored value is the canonical region name (unchanged)
       branchId: Number(values.branchId),
       comment: values.comment.trim() || undefined,
       password: values.password,
@@ -76,17 +82,14 @@ export function RegisterPage() {
     return (
       <AuthLayout>
         <div className="flex flex-col items-center py-4 text-center">
-          <span className="flex size-16 items-center justify-center rounded-full bg-emerald-500/15">
-            <CheckCircle2 className="size-9 text-emerald-400" />
+          <span className="flex size-16 items-center justify-center rounded-full bg-emerald-50">
+            <CheckCircle2 className="size-9 text-emerald-600" />
           </span>
-          <h1 className="mt-5 text-xl font-bold text-[var(--text-1)]">So'rovingiz qabul qilindi</h1>
-          <p className="mt-2 text-sm leading-relaxed text-[var(--text-2)]">
-            So'rovingiz administrator tomonidan ko'rib chiqiladi. Tasdiqlangandan so'ng ushbu telefon raqam va parol
-            bilan tizimga kirishingiz mumkin bo'ladi.
-          </p>
+          <h1 className="mt-5 text-xl font-bold text-[var(--text-1)]">{t('register.successTitle')}</h1>
+          <p className="mt-2 text-sm leading-relaxed text-[var(--text-2)]">{t('register.successBody')}</p>
           <Link to="/login" className="mt-6 w-full">
             <Button variant="secondary" size="lg" className="w-full">
-              Kirish sahifasiga qaytish
+              {t('register.backToLogin')}
             </Button>
           </Link>
         </div>
@@ -98,131 +101,129 @@ export function RegisterPage() {
     <AuthLayout
       footer={
         <>
-          Hisobingiz bormi?{' '}
-          <Link to="/login" className="font-semibold text-brand-400 transition-colors hover:text-brand-300">
-            Kirish
+          {t('register.haveAccount')}{' '}
+          <Link to="/login" className="font-semibold text-brand-600 transition-colors hover:text-brand-700">
+            {t('register.loginLink')}
           </Link>
         </>
       }
     >
-      <h1 className="text-xl font-bold text-[var(--text-1)]">Ro'yxatdan o'tish</h1>
-      <p className="mt-1 text-sm text-[var(--text-2)]">
-        So'rovingiz administrator tomonidan ko'rib chiqiladi va tasdiqlanadi
-      </p>
+      <h1 className="text-xl font-bold text-[var(--text-1)]">{t('register.title')}</h1>
+      <p className="mt-1 text-sm text-[var(--text-2)]">{t('register.subtitle')}</p>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-6 space-y-4">
-        {serverError && <Alert tone="error">{serverError}</Alert>}
+        {errorCode && <Alert tone="error">{localizeApiError(errorCode, t)}</Alert>}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input
-            label="Ism"
+            label={t('register.firstName')}
             autoComplete="given-name"
-            placeholder="Ismingiz"
+            placeholder={t('register.firstNamePlaceholder')}
             leftIcon={<User className="size-[18px]" />}
-            error={errors.firstName?.message}
+            error={fieldError(errors.firstName?.message, t)}
             {...register('firstName', {
-              required: 'Ism kiritilishi shart',
-              minLength: { value: 2, message: 'Kamida 2 ta harf' },
+              required: 'valid.firstNameRequired',
+              minLength: { value: 2, message: 'valid.min2' },
             })}
           />
           <Input
-            label="Familiya"
+            label={t('register.lastName')}
             autoComplete="family-name"
-            placeholder="Familiyangiz"
-            error={errors.lastName?.message}
+            placeholder={t('register.lastNamePlaceholder')}
+            error={fieldError(errors.lastName?.message, t)}
             {...register('lastName', {
-              required: 'Familiya kiritilishi shart',
-              minLength: { value: 2, message: 'Kamida 2 ta harf' },
+              required: 'valid.lastNameRequired',
+              minLength: { value: 2, message: 'valid.min2' },
             })}
           />
         </div>
 
         <Input
-          label="Telefon raqam"
+          label={t('auth.field.phone')}
           type="tel"
           inputMode="numeric"
           autoComplete="tel-national"
-          placeholder="90 123 45 67"
+          placeholder={t('auth.field.phonePlaceholder')}
           leftIcon={<Phone className="size-[18px]" />}
           prefix="+998"
-          error={errors.phone?.message}
+          error={fieldError(errors.phone?.message, t)}
           {...register('phone', {
-            required: 'Telefon raqam kiritilishi shart',
-            validate: (v) => toE164(v) !== null || "Telefon raqam to'liq emas",
+            required: 'valid.phoneRequired',
+            validate: (v) => toE164(v) !== null || 'valid.phoneInvalid',
             onChange: (e) => setValue('phone', formatNationalPhone(e.target.value)),
           })}
         />
 
         <Select
-          label="Viloyat"
-          error={errors.region?.message}
+          label={t('register.region')}
+          error={fieldError(errors.region?.message, t)}
           defaultValue=""
-          {...register('region', { required: 'Viloyat tanlanishi shart' })}
+          {...register('region', { required: 'valid.regionRequired' })}
         >
           <option value="" disabled>
-            Viloyatni tanlang
+            {t('register.regionPlaceholder')}
           </option>
           {REGIONS.map((r) => (
             <option key={r} value={r}>
-              {r}
+              {regionLabel(r, locale)}
             </option>
           ))}
         </Select>
 
         <Select
-          label="Servis filiali"
+          label={t('register.branch')}
           error={
-            errors.branchId?.message ??
-            (branchesQuery.isError ? "Filiallar ro'yxatini yuklab bo'lmadi. Sahifani yangilang." : undefined)
+            fieldError(errors.branchId?.message, t) ??
+            (branchesQuery.isError ? t('register.branchError') : undefined)
           }
           defaultValue=""
           disabled={branchesQuery.isLoading || branchesQuery.isError}
-          {...register('branchId', { required: 'Servis filiali tanlanishi shart' })}
+          {...register('branchId', { required: 'valid.branchRequired' })}
         >
           <option value="" disabled>
-            {branchesQuery.isLoading ? 'Yuklanmoqda…' : 'Filialni tanlang'}
+            {branchesQuery.isLoading ? t('register.branchLoading') : t('register.branchPlaceholder')}
           </option>
           {(branchesQuery.data ?? []).map((b) => (
             <option key={b.id} value={b.id}>
-              {b.name} — {b.region}
+              {b.name} — {regionLabel(b.region, locale)}
             </option>
           ))}
         </Select>
 
         <Input
-          label="Izoh (ixtiyoriy)"
-          placeholder="Masalan: 5 yillik tajribaga ega ustaman"
-          error={errors.comment?.message}
-          {...register('comment', { maxLength: { value: 500, message: 'Izoh juda uzun' } })}
+          label={t('register.comment')}
+          placeholder={t('register.commentPlaceholder')}
+          error={fieldError(errors.comment?.message, t)}
+          {...register('comment', { maxLength: { value: 500, message: 'valid.commentTooLong' } })}
         />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <PasswordInput
-            label="Parol"
+            label={t('auth.field.password')}
             autoComplete="new-password"
-            placeholder="Kamida 8 belgi"
-            error={errors.password?.message}
+            placeholder={t('register.passwordPlaceholder')}
+            error={fieldError(errors.password?.message, t)}
             {...register('password', {
-              required: 'Parol kiritilishi shart',
-              minLength: { value: 8, message: 'Kamida 8 ta belgi' },
+              required: 'valid.passwordRequired',
+              minLength: { value: 8, message: 'valid.passwordMin8' },
             })}
           />
           <PasswordInput
-            label="Parolni tasdiqlang"
+            label={t('register.confirmPassword')}
             autoComplete="new-password"
-            placeholder="Parolni qayta kiriting"
-            error={errors.confirmPassword?.message}
+            placeholder={t('register.confirmPlaceholder')}
+            error={fieldError(errors.confirmPassword?.message, t)}
             {...register('confirmPassword', {
-              required: 'Parolni qayta kiriting',
-              validate: (v) => v === getValues('password') || 'Parollar mos kelmadi',
+              required: 'valid.confirmRequired',
+              validate: (v) => v === getValues('password') || 'valid.passwordsMismatch',
             })}
           />
         </div>
 
-        <Alert tone="info">So'rov yuborilgach, hisobingiz administrator tasdig'idan so'ng faollashadi.</Alert>
+        <Alert tone="info">{t('register.infoNote')}</Alert>
 
         <Button type="submit" size="lg" loading={registerMutation.isPending} className="w-full">
-          So'rov yuborish
+          {t('register.submit')}
         </Button>
       </form>
     </AuthLayout>

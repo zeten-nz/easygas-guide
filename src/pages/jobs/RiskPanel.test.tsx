@@ -1,6 +1,7 @@
 import { test, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderWithProviders } from '../../test/utils';
+import { I18nProvider } from '../../i18n/i18n';
 import type { Job } from '../../types/entities';
 import type { RiskListItem } from '../../api/safety.api';
 
@@ -41,7 +42,7 @@ beforeEach(() => {
 test('renders the SERVER-computed level and blocking status as TEXT (not colour alone)', async () => {
   mockUser = { permissions: ['jobs.view'] };
   listRisks.mockResolvedValue({ items: [criticalBlocking], total: 1, page: 1, pageSize: 50 });
-  renderWithProviders(<RiskPanel job={job} />);
+  renderWithProviders(<I18nProvider><RiskPanel job={job} /></I18nProvider>);
 
   // Level shown as its own label (server value), and blocking shown as the word
   // "Bloklaydi" — a screen-reader user never has to infer it from colour.
@@ -54,7 +55,7 @@ test('renders the SERVER-computed level and blocking status as TEXT (not colour 
 test('surfaces the count of unresolved blocking risks that stop completion', async () => {
   mockUser = { permissions: ['jobs.view'] };
   listRisks.mockResolvedValue({ items: [criticalBlocking], total: 1, page: 1, pageSize: 50 });
-  renderWithProviders(<RiskPanel job={job} />);
+  renderWithProviders(<I18nProvider><RiskPanel job={job} /></I18nProvider>);
   const banner = await screen.findByRole('alert');
   expect(banner).toHaveTextContent(/1 ta hal qilinmagan bloklaydigan xavf/i);
 });
@@ -67,7 +68,7 @@ test('separates current-cycle risks from prior cycles', async () => {
     page: 1,
     pageSize: 50,
   });
-  renderWithProviders(<RiskPanel job={job} />);
+  renderWithProviders(<I18nProvider><RiskPanel job={job} /></I18nProvider>);
   expect(await screen.findByText(/Joriy sikl \(#2\)/i)).toBeInTheDocument();
   expect(screen.getByText(/Oldingi sikllar \(1\)/i)).toBeInTheDocument();
 });
@@ -75,7 +76,7 @@ test('separates current-cycle risks from prior cycles', async () => {
 test('renders an error state when the risk query fails', async () => {
   mockUser = { permissions: ['jobs.view'] };
   listRisks.mockRejectedValue(new Error('boom'));
-  renderWithProviders(<RiskPanel job={job} />);
+  renderWithProviders(<I18nProvider><RiskPanel job={job} /></I18nProvider>);
   expect(await screen.findByRole('alert')).toBeInTheDocument();
 });
 
@@ -83,11 +84,11 @@ test('shows the create control only to a risks.create holder', async () => {
   listRisks.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 50 });
 
   mockUser = { permissions: ['jobs.view'] };
-  const { unmount } = renderWithProviders(<RiskPanel job={job} />);
+  const { unmount } = renderWithProviders(<I18nProvider><RiskPanel job={job} /></I18nProvider>);
   expect(screen.queryByRole('button', { name: /xavf qo'shish/i })).toBeNull();
   unmount();
 
   mockUser = { permissions: ['jobs.view', 'risks.create'] };
-  renderWithProviders(<RiskPanel job={job} />);
+  renderWithProviders(<I18nProvider><RiskPanel job={job} /></I18nProvider>);
   expect(screen.getByRole('button', { name: /xavf qo'shish/i })).toBeInTheDocument();
 });

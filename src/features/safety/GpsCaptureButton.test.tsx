@@ -1,6 +1,7 @@
 import { test, expect, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from '../../test/utils';
+import { I18nProvider } from '../../i18n/i18n';
 import { GpsCaptureButton } from './GpsCaptureButton';
 
 function geoOk(accuracy = 8): Geolocation {
@@ -13,7 +14,7 @@ function geoErr(code: number): Geolocation {
 test('does NOT request geolocation on mount — only after an explicit click', () => {
   const geo = geoOk();
   const onCaptured = vi.fn();
-  renderWithProviders(<GpsCaptureButton geo={geo} onCaptured={onCaptured} />);
+  renderWithProviders(<I18nProvider><GpsCaptureButton geo={geo} onCaptured={onCaptured} /></I18nProvider>);
   expect((geo.getCurrentPosition as unknown as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button'));
   expect((geo.getCurrentPosition as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(1);
@@ -22,7 +23,7 @@ test('does NOT request geolocation on mount — only after an explicit click', (
 test('a successful capture shows accuracy and reports the reading', async () => {
   const geo = geoOk(9);
   const onCaptured = vi.fn();
-  renderWithProviders(<GpsCaptureButton geo={geo} onCaptured={onCaptured} />);
+  renderWithProviders(<I18nProvider><GpsCaptureButton geo={geo} onCaptured={onCaptured} /></I18nProvider>);
   fireEvent.click(screen.getByRole('button'));
   expect(await screen.findByText(/aniqlik ≈ 9 m/)).toBeInTheDocument();
   expect(onCaptured).toHaveBeenCalledTimes(1);
@@ -31,7 +32,7 @@ test('a successful capture shows accuracy and reports the reading', async () => 
 test('permission denied shows a clear message and does not report a reading', async () => {
   const geo = geoErr(1);
   const onCaptured = vi.fn();
-  renderWithProviders(<GpsCaptureButton geo={geo} onCaptured={onCaptured} />);
+  renderWithProviders(<I18nProvider><GpsCaptureButton geo={geo} onCaptured={onCaptured} /></I18nProvider>);
   fireEvent.click(screen.getByRole('button'));
   const alert = await screen.findByRole('alert');
   expect(alert.textContent).toMatch(/ruxsat/i);
@@ -41,7 +42,7 @@ test('permission denied shows a clear message and does not report a reading', as
 test('low accuracy is flagged and the reading is NOT auto-reported', async () => {
   const geo = geoOk(500); // worse than the 100m policy
   const onCaptured = vi.fn();
-  renderWithProviders(<GpsCaptureButton geo={geo} onCaptured={onCaptured} maxAccuracyMeters={100} />);
+  renderWithProviders(<I18nProvider><GpsCaptureButton geo={geo} onCaptured={onCaptured} maxAccuracyMeters={100} /></I18nProvider>);
   fireEvent.click(screen.getByRole('button'));
   expect(await screen.findByText(/aniqlik past/i)).toBeInTheDocument();
   expect(onCaptured).not.toHaveBeenCalled();

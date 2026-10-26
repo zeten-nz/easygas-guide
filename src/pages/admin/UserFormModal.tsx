@@ -16,7 +16,11 @@ import { getApiError } from '../../api/client';
 import { assignableRoles, can } from '../../lib/permissions';
 import { formatNationalPhone, toE164 } from '../../lib/phone';
 import { REGIONS } from '../../lib/regions';
-import { ROLE_LABELS, type RoleCode, type UserDetail } from '../../types/auth';
+import { type RoleCode, type UserDetail } from '../../types/auth';
+import { useT, useLocale } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
+import { fieldError } from '../../i18n/form';
+import { roleLabel, regionLabel } from '../../i18n/labels';
 
 /** Roles that must belong to a branch (mirrors server BRANCH_REQUIRED_ROLES). */
 const BRANCH_REQUIRED: RoleCode[] = ['USTA', 'MASTER', 'RAHBAR'];
@@ -42,6 +46,8 @@ interface UserFormModalProps {
  * state comes from defaultValues — no synchronization effects needed.
  */
 export function UserFormModal({ onClose, editUser }: UserFormModalProps) {
+  const t = useT();
+  const { locale } = useLocale();
   const { user: actor } = useAuth();
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -114,96 +120,96 @@ export function UserFormModal({ onClose, editUser }: UserFormModalProps) {
       });
     },
     onSuccess: () => {
-      toast.success(isEdit ? "Foydalanuvchi ma'lumotlari yangilandi" : 'Foydalanuvchi yaratildi');
+      toast.success(isEdit ? t('au.userForm.toastUpdated') : t('au.userForm.toastCreated'));
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       onClose();
     },
-    onError: (err) => setServerError(getApiError(err).message),
+    onError: (err) => setServerError(localizeApiError(getApiError(err).code, t)),
   });
 
   return (
-    <Modal open onClose={onClose} title={isEdit ? 'Foydalanuvchini tahrirlash' : 'Yangi foydalanuvchi'}>
+    <Modal open onClose={onClose} title={isEdit ? t('au.userForm.editTitle') : t('au.userForm.newTitle')}>
       <form onSubmit={handleSubmit((v) => mutation.mutate(v))} noValidate className="space-y-4">
         {serverError && <Alert tone="error">{serverError}</Alert>}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input
-            label="Ism"
-            placeholder="Ism"
+            label={t('au.userForm.firstName')}
+            placeholder={t('au.userForm.firstName')}
             leftIcon={<UserIcon className="size-[18px]" />}
-            error={errors.firstName?.message}
+            error={fieldError(errors.firstName?.message, t)}
             {...register('firstName', {
-              required: 'Ism kiritilishi shart',
-              minLength: { value: 2, message: 'Kamida 2 ta harf' },
+              required: 'valid.firstNameRequired',
+              minLength: { value: 2, message: 'valid.min2' },
             })}
           />
           <Input
-            label="Familiya"
-            placeholder="Familiya"
-            error={errors.lastName?.message}
+            label={t('au.userForm.lastName')}
+            placeholder={t('au.userForm.lastName')}
+            error={fieldError(errors.lastName?.message, t)}
             {...register('lastName', {
-              required: 'Familiya kiritilishi shart',
-              minLength: { value: 2, message: 'Kamida 2 ta harf' },
+              required: 'valid.lastNameRequired',
+              minLength: { value: 2, message: 'valid.min2' },
             })}
           />
         </div>
 
         <Input
-          label="Telefon raqam"
+          label={t('au.userForm.phone')}
           type="tel"
           inputMode="numeric"
           placeholder="90 123 45 67"
           leftIcon={<Phone className="size-[18px]" />}
           prefix="+998"
-          error={errors.phone?.message}
+          error={fieldError(errors.phone?.message, t)}
           {...register('phone', {
-            required: 'Telefon raqam kiritilishi shart',
-            validate: (v) => toE164(v) !== null || "Telefon raqam to'liq emas",
+            required: 'valid.phoneRequired',
+            validate: (v) => toE164(v) !== null || 'valid.phoneInvalid',
             onChange: (e) => setValue('phone', formatNationalPhone(e.target.value)),
           })}
         />
 
         <Select
-          label="Viloyat"
-          error={errors.region?.message}
-          {...register('region', { required: 'Viloyat tanlanishi shart' })}
+          label={t('au.userForm.region')}
+          error={fieldError(errors.region?.message, t)}
+          {...register('region', { required: 'valid.regionRequired' })}
         >
           <option value="" disabled>
-            Viloyatni tanlang
+            {t('au.userForm.regionPlaceholder')}
           </option>
           {REGIONS.map((r) => (
             <option key={r} value={r}>
-              {r}
+              {regionLabel(r, locale)}
             </option>
           ))}
         </Select>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Select
-            label="Rol"
+            label={t('au.userForm.role')}
             disabled={editingSelf}
-            error={errors.roleCode?.message}
-            {...register('roleCode', { required: 'Rol tanlanishi shart' })}
+            error={fieldError(errors.roleCode?.message, t)}
+            {...register('roleCode', { required: 'au.userForm.roleRequired' })}
           >
             <option value="" disabled>
-              Rolni tanlang
+              {t('au.userForm.rolePlaceholder')}
             </option>
             {roleOptions.map((code) => (
               <option key={code} value={code}>
-                {ROLE_LABELS[code]}
+                {roleLabel(code, t)}
               </option>
             ))}
           </Select>
 
           <Select
-            label={branchRequired ? 'Filial' : 'Filial (ixtiyoriy)'}
+            label={branchRequired ? t('au.userForm.branch') : t('au.userForm.branchOptional')}
             disabled={branchLocked || editingSelf}
-            error={errors.branchId?.message}
+            error={fieldError(errors.branchId?.message, t)}
             {...register('branchId', {
-              validate: (v) => !branchRequired || v !== '' || 'Bu rol uchun filial tanlanishi shart',
+              validate: (v) => !branchRequired || v !== '' || 'au.userForm.branchRequiredForRole',
             })}
           >
-            <option value="">{branchRequired ? 'Filialni tanlang' : '— Filialsiz —'}</option>
+            <option value="">{branchRequired ? t('au.userForm.branchPlaceholder') : t('au.userForm.branchNone')}</option>
             {(branchesQuery.data ?? []).map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
@@ -212,29 +218,27 @@ export function UserFormModal({ onClose, editUser }: UserFormModalProps) {
           </Select>
         </div>
 
-        {editingSelf && (
-          <Alert tone="info">O'z rolingiz va filialingizni o'zgartira olmaysiz — buni boshqa administrator bajaradi.</Alert>
-        )}
+        {editingSelf && <Alert tone="info">{t('au.userForm.selfRoleNote')}</Alert>}
 
         {!isEdit && (
           <PasswordInput
-            label="Boshlang'ich parol"
+            label={t('au.userForm.initialPassword')}
             autoComplete="new-password"
-            placeholder="Kamida 8 belgi"
-            error={errors.password?.message}
+            placeholder={t('au.userForm.passwordPlaceholder')}
+            error={fieldError(errors.password?.message, t)}
             {...register('password', {
-              required: 'Parol kiritilishi shart',
-              minLength: { value: 8, message: 'Kamida 8 ta belgi' },
+              required: 'valid.passwordRequired',
+              minLength: { value: 8, message: 'valid.passwordMin8' },
             })}
           />
         )}
 
         <div className="flex justify-end gap-3 pt-1">
           <Button type="button" variant="ghost" onClick={onClose} disabled={mutation.isPending}>
-            Bekor qilish
+            {t('common.cancel')}
           </Button>
           <Button type="submit" loading={mutation.isPending}>
-            {isEdit ? 'Saqlash' : 'Yaratish'}
+            {isEdit ? t('common.save') : t('au.action.create')}
           </Button>
         </div>
       </form>

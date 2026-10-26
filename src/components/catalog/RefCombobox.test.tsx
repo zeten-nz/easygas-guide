@@ -2,6 +2,7 @@ import { test, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test/utils';
+import { I18nProvider } from '../../i18n/i18n';
 
 vi.mock('../../api/reference.api', () => ({ listReference: vi.fn(), getReferenceById: vi.fn() }));
 import * as refApi from '../../api/reference.api';
@@ -30,7 +31,7 @@ beforeEach(() => {
 
 test('opens on click, lists ACTIVE options (bounded), and selecting calls onChange', async () => {
   const onChange = vi.fn();
-  renderWithProviders(<RefCombobox kind="brands" ariaLabel="Brend" value={null} onChange={onChange} />);
+  renderWithProviders(<I18nProvider><RefCombobox kind="brands" ariaLabel="Brend" value={null} onChange={onChange} /></I18nProvider>);
   await userEvent.click(screen.getByRole('button', { name: 'Brend' }));
   // The list request is bounded (limit 20, ACTIVE only) — never a fetch-all.
   await waitFor(() => expect(list).toHaveBeenCalledWith('brands', expect.objectContaining({ status: 'ACTIVE', limit: 20 })));
@@ -40,7 +41,7 @@ test('opens on click, lists ACTIVE options (bounded), and selecting calls onChan
 
 test('a selected value is loaded BY ID and an ARCHIVED selection shows a readable marker', async () => {
   byId.mockResolvedValue(item({ id: 9, name: 'Eski brend', status: 'ARCHIVED' }));
-  renderWithProviders(<RefCombobox kind="brands" ariaLabel="Brend" value={9} onChange={() => {}} />);
+  renderWithProviders(<I18nProvider><RefCombobox kind="brands" ariaLabel="Brend" value={9} onChange={() => {}} /></I18nProvider>);
   await waitFor(() => expect(byId).toHaveBeenCalledWith('brands', 9));
   expect(await screen.findByText('Eski brend')).toBeInTheDocument();
   expect(screen.getByText('(arxivlangan)')).toBeInTheDocument();

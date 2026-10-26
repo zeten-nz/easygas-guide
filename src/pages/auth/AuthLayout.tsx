@@ -1,49 +1,57 @@
 import type { ReactNode } from 'react';
 import { Send } from 'lucide-react';
 import { Brand } from '../../components/ui/Brand';
+import { LanguageSelector } from '../../components/ui/LanguageSelector';
+import { useT } from '../../i18n/i18n';
 
 const SUPPORT_URL = import.meta.env.VITE_SUPPORT_URL ?? 'https://t.me/EasygasGarantbot';
 
 /**
- * Shared premium dark shell for all authentication screens:
- * graphite backdrop, restrained red glow, centered glass card.
+ * Shared authentication shell. Uses the SAME light design language as the
+ * main/admin app (cream page, white bordered card, real logo on a light surface,
+ * shared tokens/controls) — no auth-only dark/glow/glass identity. A language
+ * selector sits in the top bar so the visitor can switch uz/ru before signing in.
  */
 export function AuthLayout({ children, footer }: { children: ReactNode; footer?: ReactNode }) {
+  const t = useT();
   return (
-    <div className="theme-dark auth-backdrop flex min-h-dvh flex-col items-center justify-center px-4 py-8">
-      <main className="w-full max-w-[420px]">
-        <div className="mb-8 flex flex-col items-center gap-4">
-          {/* Real stacked logo on a light "brand plate" — the assets are made for
-              light surfaces; this shows them correctly on the dark auth backdrop
-              without recolouring them. Above the fold → eager. */}
-          <div className="rounded-3xl bg-white p-3 shadow-[0_18px_40px_-18px_rgba(0,0,0,0.6)]">
-            <Brand variant="stacked" height={92} priority />
+    <div className="flex min-h-dvh flex-col bg-[var(--bg)]">
+      {/* Public top bar — mirrors the authenticated shell's bar (brand left, language right). */}
+      <header className="flex items-center justify-between border-b border-[var(--border-1)] bg-[var(--surface)] px-4 py-3 sm:px-6">
+        <Brand variant="wordmark" height={26} priority decorative />
+        <LanguageSelector />
+      </header>
+
+      <main className="flex flex-1 flex-col items-center justify-center px-4 py-8 sm:py-12">
+        <div className="w-full max-w-[420px]">
+          <div className="mb-6 flex flex-col items-center gap-3 text-center">
+            <Brand variant="stacked" height={76} priority />
+            <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[var(--text-3)]">
+              {t('common.brandTagline')}
+            </p>
           </div>
-          <p className="text-center text-[13px] font-medium uppercase tracking-[0.18em] text-[var(--text-2)]">
-            Safety Technology
-          </p>
-        </div>
 
-        <div className="glass-card rounded-3xl p-6 sm:p-8">{children}</div>
+          <div className="rounded-2xl border border-[var(--border-1)] bg-[var(--surface)] p-6 shadow-[0_1px_2px_rgba(20,22,26,0.04),0_12px_32px_-16px_rgba(20,22,26,0.18)] sm:p-8">
+            {children}
+          </div>
 
-        {footer && <div className="mt-6 text-center text-sm text-[var(--text-2)]">{footer}</div>}
+          {footer && <div className="mt-6 text-center text-sm text-[var(--text-2)]">{footer}</div>}
 
-        <div className="mt-8 flex justify-center">
-          <a
-            href={SUPPORT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--border-1)] bg-[var(--surface)] px-4 py-2 text-[13px] text-[var(--text-2)] transition-colors hover:text-[var(--text-1)]"
-          >
-            <Send className="size-4" />
-            Yordam kerakmi? @EasygasGarantbot
-          </a>
+          <div className="mt-8 flex justify-center">
+            <a
+              href={SUPPORT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-[var(--border-1)] bg-[var(--surface)] px-4 py-2 text-[13px] text-[var(--text-2)] transition-colors hover:border-blue-500/50 hover:text-[var(--text-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+            >
+              <Send className="size-4" />
+              {t('auth.support')} @EasygasGarantbot
+            </a>
+          </div>
         </div>
       </main>
 
-      <p className="mt-8 text-center text-xs text-[var(--text-2)]/70">
-        Safe installation. Verified work. Trusted service.
-      </p>
+      <p className="pb-8 text-center text-xs text-[var(--text-3)]">{t('auth.tagline')}</p>
     </div>
   );
 }

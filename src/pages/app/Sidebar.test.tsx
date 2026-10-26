@@ -20,12 +20,15 @@ const user = {
 vi.mock('../../features/auth/auth-context', () => ({ useAuth: () => ({ user }) }));
 
 import { Sidebar } from './Sidebar';
+import { I18nProvider } from '../../i18n/i18n';
 
 test('renders only the nav items the user is authorized for (no dead links)', () => {
   render(
-    <MemoryRouter>
-      <Sidebar />
-    </MemoryRouter>,
+    <I18nProvider>
+      <MemoryRouter>
+        <Sidebar />
+      </MemoryRouter>
+    </I18nProvider>,
   );
   // Always-visible home + authorized items.
   expect(screen.getByRole('link', { name: 'Bosh sahifa' })).toBeInTheDocument();

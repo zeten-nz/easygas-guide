@@ -11,6 +11,9 @@ import { Alert } from '../../components/ui/Alert';
 import { useAuth } from '../../features/auth/auth-context';
 import * as authApi from '../../api/auth.api';
 import { getApiError } from '../../api/client';
+import { useT } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
+import { fieldError } from '../../i18n/form';
 
 interface FormValues {
   currentPassword: string;
@@ -24,14 +27,15 @@ interface FormValues {
  *    admin-issued temporary password. The route guard forces the user here and
  *    blocks the rest of the app until the change succeeds (server-enforced too);
  *    the "current" password is the temporary one.
- *  - VOLUNTARY: reached from "Mening profilim → Parolni o'zgartirish"; the
- *    "current" password is the user's real password.
+ *  - VOLUNTARY: reached from the profile menu; the "current" password is the
+ *    user's real password.
  * Either way the server revokes all sessions and issues this device a fresh one.
  */
 export function ChangePasswordPage() {
   const navigate = useNavigate();
   const { user, setUser, logout } = useAuth();
-  const [serverError, setServerError] = useState<string | null>(null);
+  const t = useT();
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const forced = !!user?.mustChangePassword;
 
   const {
@@ -45,10 +49,10 @@ export function ChangePasswordPage() {
     mutationFn: authApi.changePassword,
     onSuccess: (updated) => {
       setUser(updated); // mustChangePassword is now false → the guard releases the app
-      if (!forced) toast.success("Parol o'zgartirildi");
+      if (!forced) toast.success(t('changePw.toastSuccess'));
       navigate(forced ? '/app' : '/app/profile', { replace: true });
     },
-    onError: (err) => setServerError(getApiError(err).message),
+    onError: (err) => setErrorCode(getApiError(err).code ?? 'UNKNOWN'),
   });
 
   return (
@@ -60,7 +64,7 @@ export function ChangePasswordPage() {
             onClick={() => void logout()}
             className="text-sm font-medium text-[var(--text-2)] transition-colors hover:text-[var(--text-1)]"
           >
-            Chiqish
+            {t('common.logout')}
           </button>
         ) : (
           <button
@@ -68,73 +72,70 @@ export function ChangePasswordPage() {
             onClick={() => navigate('/app/profile')}
             className="text-sm font-medium text-[var(--text-2)] transition-colors hover:text-[var(--text-1)]"
           >
-            Bekor qilish
+            {t('changePw.cancel')}
           </button>
         )
       }
     >
       <div className="flex flex-col items-center text-center">
-        <span className="flex size-14 items-center justify-center rounded-full bg-brand-500/15">
-          <KeyRound className="size-8 text-brand-400" />
+        <span className="flex size-14 items-center justify-center rounded-full bg-brand-50">
+          <KeyRound className="size-8 text-brand-600" />
         </span>
         <h1 className="mt-4 text-xl font-bold text-[var(--text-1)]">
-          {forced ? "Yangi parol o'rnating" : "Parolni o'zgartirish"}
+          {forced ? t('changePw.forcedTitle') : t('changePw.voluntaryTitle')}
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-[var(--text-2)]">
-          {forced
-            ? 'Bu vaqtinchalik parol. Ishni davom ettirish uchun uni almashtiring.'
-            : 'Joriy parolingizni tasdiqlang va yangi parol tanlang.'}
+          {forced ? t('changePw.forcedSubtitle') : t('changePw.voluntarySubtitle')}
         </p>
       </div>
 
       <form
         onSubmit={handleSubmit((v) => {
-          setServerError(null);
+          setErrorCode(null);
           mutation.mutate({ currentPassword: v.currentPassword, newPassword: v.newPassword });
         })}
         noValidate
         className="mt-6 space-y-4"
       >
-        {serverError && <Alert tone="error">{serverError}</Alert>}
+        {errorCode && <Alert tone="error">{localizeApiError(errorCode, t)}</Alert>}
 
         <PasswordInput
-          label={forced ? 'Vaqtinchalik parol' : 'Joriy parol'}
+          label={forced ? t('changePw.tempLabel') : t('changePw.currentLabel')}
           autoComplete="current-password"
-          placeholder={forced ? 'Administrator bergan parol' : 'Joriy parolingiz'}
-          error={errors.currentPassword?.message}
-          {...register('currentPassword', { required: forced ? 'Vaqtinchalik parolni kiriting' : 'Joriy parolni kiriting' })}
-        />
-        <PasswordInput
-          label="Yangi parol"
-          autoComplete="new-password"
-          placeholder="Kamida 8 belgi"
-          error={errors.newPassword?.message}
-          {...register('newPassword', {
-            required: 'Yangi parol kiritilishi shart',
-            minLength: { value: 8, message: 'Kamida 8 ta belgi' },
-            validate: (v) => v !== getValues('currentPassword') || 'Yangi parol joriy paroldan farq qilishi kerak',
+          placeholder={forced ? t('changePw.tempPlaceholder') : t('changePw.currentPlaceholder')}
+          error={fieldError(errors.currentPassword?.message, t)}
+          {...register('currentPassword', {
+            required: forced ? 'valid.tempPasswordRequired' : 'valid.currentPasswordRequired',
           })}
         />
         <PasswordInput
-          label="Yangi parolni tasdiqlang"
+          label={t('changePw.newLabel')}
           autoComplete="new-password"
-          placeholder="Parolni qayta kiriting"
-          error={errors.confirmPassword?.message}
+          placeholder={t('changePw.newPlaceholder')}
+          error={fieldError(errors.newPassword?.message, t)}
+          {...register('newPassword', {
+            required: 'valid.newPasswordRequired',
+            minLength: { value: 8, message: 'valid.passwordMin8' },
+            validate: (v) => v !== getValues('currentPassword') || 'valid.passwordMustDiffer',
+          })}
+        />
+        <PasswordInput
+          label={t('changePw.confirmLabel')}
+          autoComplete="new-password"
+          placeholder={t('changePw.confirmPlaceholder')}
+          error={fieldError(errors.confirmPassword?.message, t)}
           {...register('confirmPassword', {
-            required: 'Parolni qayta kiriting',
-            validate: (v) => v === getValues('newPassword') || 'Parollar mos kelmadi',
+            required: 'valid.confirmRequired',
+            validate: (v) => v === getValues('newPassword') || 'valid.passwordsMismatch',
           })}
         />
 
         {/* Session security: the server revokes every existing session on a
             password change and issues this device a fresh one. */}
-        <p className="text-[13px] leading-relaxed text-[var(--text-2)]">
-          Xavfsizlik uchun parolni o'zgartirsangiz, boshqa qurilmalardagi barcha seanslaringiz
-          tugatiladi — faqat shu qurilma tizimda qoladi.
-        </p>
+        <p className="text-[13px] leading-relaxed text-[var(--text-2)]">{t('changePw.sessionNote')}</p>
 
         <Button type="submit" size="lg" loading={mutation.isPending} className="w-full">
-          Parolni o'rnatish
+          {t('changePw.submit')}
         </Button>
       </form>
     </AuthLayout>

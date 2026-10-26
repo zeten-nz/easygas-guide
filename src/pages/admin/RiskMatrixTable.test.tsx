@@ -1,6 +1,7 @@
 import { test, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { RiskMatrixTable } from './RiskMatrixTable';
+import { I18nProvider } from '../../i18n/i18n';
 import type { MatrixCell, MatrixDefinition } from '../../api/safety.api';
 
 const definition: MatrixDefinition = {
@@ -18,7 +19,7 @@ const cells: MatrixCell[] = [
 ];
 
 test('renders an accessible table with word labels + blocking text (colour never the sole signal)', () => {
-  render(<RiskMatrixTable cells={cells} definition={definition} />);
+  render(<I18nProvider><RiskMatrixTable cells={cells} definition={definition} /></I18nProvider>);
   // A real <table> with a caption for screen readers.
   expect(screen.getByRole('table')).toBeInTheDocument();
   // Level names are words, and the blocking cell says "Bloklovchi" (not colour alone).

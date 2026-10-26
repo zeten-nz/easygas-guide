@@ -9,6 +9,9 @@ import { Button } from '../../components/ui/Button';
 import { Alert } from '../../components/ui/Alert';
 import * as vehiclesApi from '../../api/vehicles.api';
 import { getApiError } from '../../api/client';
+import { useT } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
+import { fieldError } from '../../i18n/form';
 import type { Vehicle } from '../../types/entities';
 
 interface FormValues {
@@ -36,6 +39,7 @@ export function VehicleFormModal({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const t = useT();
   const [serverError, setServerError] = useState<string | null>(null);
   const isEdit = !!editVehicle;
 
@@ -73,80 +77,80 @@ export function VehicleFormModal({
       return isEdit && editVehicle ? vehiclesApi.updateVehicle(editVehicle.id, input) : vehiclesApi.createVehicle(input);
     },
     onSuccess: () => {
-      toast.success(isEdit ? "Avtomobil ma'lumotlari yangilandi" : "Avtomobil qo'shildi");
+      toast.success(isEdit ? t('m.vehicleForm.updated') : t('m.vehicleForm.created'));
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
       onClose();
     },
-    onError: (err) => setServerError(getApiError(err).message),
+    onError: (err) => setServerError(localizeApiError(getApiError(err).code, t)),
   });
 
   const currentYear = new Date().getFullYear();
 
   return (
-    <Modal open onClose={onClose} title={isEdit ? 'Avtomobilni tahrirlash' : "Avtomobil qo'shish"}>
+    <Modal open onClose={onClose} title={isEdit ? t('m.vehicleForm.editTitle') : t('m.vehicles.add')}>
       <form onSubmit={handleSubmit((v) => mutation.mutate(v))} noValidate className="space-y-4">
         {serverError && <Alert tone="error">{serverError}</Alert>}
 
         <Input
-          label="Davlat raqami"
+          label={t('m.vehicleForm.plate')}
           placeholder="01 A 123 BC"
           leftIcon={<Hash className="size-[18px]" />}
           className="uppercase"
-          error={errors.plateNumber?.message}
+          error={fieldError(errors.plateNumber?.message, t)}
           {...register('plateNumber', {
-            required: 'Davlat raqami kiritilishi shart',
+            required: 'm.valid.plateRequired',
             validate: (v) =>
-              /^[A-Z0-9]{5,12}$/.test(v.toUpperCase().replace(/[\s-]/g, '')) || "Davlat raqami noto'g'ri formatda",
+              /^[A-Z0-9]{5,12}$/.test(v.toUpperCase().replace(/[\s-]/g, '')) || 'm.valid.plateFormat',
             onChange: (e) => setValue('plateNumber', e.target.value.toUpperCase()),
           })}
         />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input
-            label="Marka"
+            label={t('m.vehicleForm.make')}
             placeholder="Chevrolet"
             leftIcon={<Car className="size-[18px]" />}
-            error={errors.make?.message}
+            error={fieldError(errors.make?.message, t)}
             {...register('make', {
-              required: 'Marka kiritilishi shart',
-              minLength: { value: 2, message: 'Kamida 2 ta belgi' },
+              required: 'm.valid.makeRequired',
+              minLength: { value: 2, message: 'm.valid.min2Chars' },
             })}
           />
           <Input
-            label="Model"
+            label={t('m.vehicleForm.model')}
             placeholder="Cobalt"
-            error={errors.model?.message}
-            {...register('model', { required: 'Model kiritilishi shart' })}
+            error={fieldError(errors.model?.message, t)}
+            {...register('model', { required: 'm.valid.modelRequired' })}
           />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Yil (ixtiyoriy)"
+            label={t('m.vehicleForm.year')}
             inputMode="numeric"
             placeholder={String(currentYear)}
-            error={errors.year?.message}
+            error={fieldError(errors.year?.message, t)}
             {...register('year', {
               validate: (v) => {
                 if (v.trim() === '') return true;
                 const n = Number(v);
-                return (Number.isInteger(n) && n >= 1950 && n <= currentYear + 1) || "Yil noto'g'ri";
+                return (Number.isInteger(n) && n >= 1950 && n <= currentYear + 1) || 'm.valid.yearInvalid';
               },
               onChange: (e) => setValue('year', e.target.value.replace(/\D/g, '').slice(0, 4)),
             })}
           />
           <Input
-            label="Probeg, km (ixtiyoriy)"
+            label={t('m.vehicleForm.mileage')}
             inputMode="numeric"
             placeholder="120000"
             leftIcon={<Gauge className="size-[18px]" />}
-            error={errors.mileage?.message}
+            error={fieldError(errors.mileage?.message, t)}
             {...register('mileage', {
               validate: (v) => {
                 if (v.trim() === '') return true;
                 const n = Number(v);
-                return (Number.isInteger(n) && n >= 0 && n <= 2_000_000) || "Probeg noto'g'ri";
+                return (Number.isInteger(n) && n >= 0 && n <= 2_000_000) || 'm.valid.mileageInvalid';
               },
               onChange: (e) => setValue('mileage', e.target.value.replace(/\D/g, '').slice(0, 7)),
             })}
@@ -154,32 +158,32 @@ export function VehicleFormModal({
         </div>
 
         <Input
-          label="Dvigatel (ixtiyoriy)"
-          placeholder="1.5 benzin"
-          error={errors.engine?.message}
-          {...register('engine', { maxLength: { value: 100, message: 'Juda uzun' } })}
+          label={t('m.vehicleForm.engine')}
+          placeholder={t('m.vehicleForm.enginePlaceholder')}
+          error={fieldError(errors.engine?.message, t)}
+          {...register('engine', { maxLength: { value: 100, message: 'm.valid.tooLong' } })}
         />
 
         <Input
-          label="VIN (ixtiyoriy)"
-          placeholder="17 belgili VIN"
+          label={t('m.vehicleForm.vin')}
+          placeholder={t('m.vehicleForm.vinPlaceholder')}
           className="uppercase"
-          error={errors.vin?.message}
+          error={fieldError(errors.vin?.message, t)}
           {...register('vin', {
             validate: (v) =>
               v.trim() === '' ||
               /^[A-HJ-NPR-Z0-9]{17}$/.test(v.toUpperCase().replace(/\s/g, '')) ||
-              "VIN 17 ta belgidan iborat bo'lishi kerak (I, O, Q harflarisiz)",
+              'm.valid.vinFormat',
             onChange: (e) => setValue('vin', e.target.value.toUpperCase().slice(0, 17)),
           })}
         />
 
         <div className="flex justify-end gap-3 pt-1">
           <Button type="button" variant="ghost" onClick={onClose} disabled={mutation.isPending}>
-            Bekor qilish
+            {t('common.cancel')}
           </Button>
           <Button type="submit" loading={mutation.isPending}>
-            {isEdit ? 'Saqlash' : "Qo'shish"}
+            {isEdit ? t('common.save') : t('m.action.add')}
           </Button>
         </div>
       </form>

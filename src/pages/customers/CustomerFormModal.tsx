@@ -10,6 +10,9 @@ import { Alert } from '../../components/ui/Alert';
 import * as customersApi from '../../api/customers.api';
 import { getApiError } from '../../api/client';
 import { formatNationalPhone, toE164 } from '../../lib/phone';
+import { useT } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
+import { fieldError } from '../../i18n/form';
 import type { Customer } from '../../types/entities';
 
 interface FormValues {
@@ -32,6 +35,7 @@ export function CustomerFormModal({
   onCreated?: (customer: Customer) => void;
 }) {
   const queryClient = useQueryClient();
+  const t = useT();
   const [serverError, setServerError] = useState<string | null>(null);
   const isEdit = !!editCustomer;
 
@@ -54,51 +58,51 @@ export function CustomerFormModal({
       return isEdit && editCustomer ? customersApi.updateCustomer(editCustomer.id, input) : customersApi.createCustomer(input);
     },
     onSuccess: (customer) => {
-      toast.success(isEdit ? "Mijoz ma'lumotlari yangilandi" : 'Mijoz yaratildi');
+      toast.success(isEdit ? t('m.customerForm.updated') : t('m.customerForm.created'));
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       if (!isEdit) onCreated?.(customer);
       onClose();
     },
-    onError: (err) => setServerError(getApiError(err).message),
+    onError: (err) => setServerError(localizeApiError(getApiError(err).code, t)),
   });
 
   return (
-    <Modal open onClose={onClose} title={isEdit ? 'Mijozni tahrirlash' : 'Yangi mijoz'}>
+    <Modal open onClose={onClose} title={isEdit ? t('m.customerForm.editTitle') : t('m.customers.new')}>
       <form onSubmit={handleSubmit((v) => mutation.mutate(v))} noValidate className="space-y-4">
         {serverError && <Alert tone="error">{serverError}</Alert>}
 
         <Input
-          label="Ism"
-          placeholder="Mijozning ismi"
+          label={t('m.customerForm.nameLabel')}
+          placeholder={t('m.customerForm.namePlaceholder')}
           leftIcon={<UserIcon className="size-[18px]" />}
-          error={errors.name?.message}
+          error={fieldError(errors.name?.message, t)}
           {...register('name', {
-            required: 'Ism kiritilishi shart',
-            minLength: { value: 2, message: 'Kamida 2 ta harf' },
+            required: 'm.valid.nameRequired',
+            minLength: { value: 2, message: 'm.valid.min2Letters' },
           })}
         />
 
         <Input
-          label="Telefon raqam"
+          label={t('m.customerForm.phoneLabel')}
           type="tel"
           inputMode="numeric"
           placeholder="90 123 45 67"
           leftIcon={<Phone className="size-[18px]" />}
           prefix="+998"
-          error={errors.phone?.message}
+          error={fieldError(errors.phone?.message, t)}
           {...register('phone', {
-            required: 'Telefon raqam kiritilishi shart',
-            validate: (v) => toE164(v) !== null || "Telefon raqam to'liq emas",
+            required: 'm.valid.phoneRequired',
+            validate: (v) => toE164(v) !== null || 'm.valid.phoneIncomplete',
             onChange: (e) => setValue('phone', formatNationalPhone(e.target.value)),
           })}
         />
 
         <div className="flex justify-end gap-3 pt-1">
           <Button type="button" variant="ghost" onClick={onClose} disabled={mutation.isPending}>
-            Bekor qilish
+            {t('common.cancel')}
           </Button>
           <Button type="submit" loading={mutation.isPending}>
-            {isEdit ? 'Saqlash' : 'Yaratish'}
+            {isEdit ? t('common.save') : t('m.action.create')}
           </Button>
         </div>
       </form>

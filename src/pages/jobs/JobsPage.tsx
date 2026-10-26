@@ -8,7 +8,7 @@ import { Select } from '../../components/ui/Select';
 import { Alert } from '../../components/ui/Alert';
 import { Spinner } from '../../components/ui/Spinner';
 import { Pagination } from '../../components/ui/Pagination';
-import { JobStatusBadge } from './JobStatusBadge';
+import { JobStatusBadge, jobStatusLabel } from './JobStatusBadge';
 import { TechnicianFilter } from './TechnicianFilter';
 import { useAuth } from '../../features/auth/auth-context';
 import { useTableParams } from '../../lib/useTableParams';
@@ -17,9 +17,13 @@ import { fetchBranches } from '../../api/branches.api';
 import { getApiError } from '../../api/client';
 import { can } from '../../lib/permissions';
 import { displayPhone } from '../../lib/phone';
-import { JOB_STATUSES, JOB_STATUS_LABELS, type JobStatus } from '../../types/entities';
+import { JOB_STATUSES, type JobStatus } from '../../types/entities';
+import { useT, useDate } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
 
 export function JobsPage() {
+  const t = useT();
+  const fmtD = useDate();
   const { user: actor } = useAuth();
   const navigate = useNavigate();
   const { page, pageSize, filters, setPage, setPageSize, setFilter } = useTableParams(
@@ -75,38 +79,38 @@ export function JobsPage() {
     <div className="mx-auto max-w-4xl">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-1)]">Ishlar</h1>
+          <h1 className="text-2xl font-bold text-[var(--text-1)]">{t('ja.jobs.title')}</h1>
           <p className="mt-1 text-sm text-[var(--text-2)]">
-            {seesAllBranches ? 'Barcha filiallardagi ishlar' : "O'z filialingizdagi ishlar"}
+            {seesAllBranches ? t('ja.jobs.subtitleAll') : t('ja.jobs.subtitleOwn')}
           </p>
         </div>
         {can(actor, 'jobs.create') && (
           <Button onClick={() => navigate('/app/jobs/new')}>
             <Plus className="size-4" />
-            Yangi ish ochish
+            {t('ja.jobs.newJob')}
           </Button>
         )}
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Input
-          placeholder="№, davlat raqami, mijoz…"
+          placeholder={t('ja.jobs.searchPlaceholder')}
           leftIcon={<Search className="size-[18px]" />}
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
-          aria-label="Ish qidirish"
+          aria-label={t('ja.jobs.searchAria')}
         />
-        <Select value={filters.status} onChange={(e) => setFilter('status', e.target.value)} aria-label="Holat bo'yicha filtr">
-          <option value="">Barcha holatlar</option>
+        <Select value={filters.status} onChange={(e) => setFilter('status', e.target.value)} aria-label={t('ja.jobs.statusFilterAria')}>
+          <option value="">{t('ja.jobs.allStatuses')}</option>
           {JOB_STATUSES.map((s) => (
             <option key={s} value={s}>
-              {JOB_STATUS_LABELS[s]}
+              {jobStatusLabel(s, t)}
             </option>
           ))}
         </Select>
         {seesAllBranches && (
-          <Select value={filters.branchId} onChange={(e) => setFilter('branchId', e.target.value)} aria-label="Filial bo'yicha filtr">
-            <option value="">Barcha filiallar</option>
+          <Select value={filters.branchId} onChange={(e) => setFilter('branchId', e.target.value)} aria-label={t('ja.jobs.branchFilterAria')}>
+            <option value="">{t('ja.jobs.allBranches')}</option>
             {(branchesQuery.data ?? []).map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
@@ -118,8 +122,8 @@ export function JobsPage() {
           value={filters.technicianId ? Number(filters.technicianId) : null}
           onChange={(id) => setFilter('technicianId', id != null ? String(id) : '')}
         />
-        <Input type="date" value={filters.dateFrom} onChange={(e) => setFilter('dateFrom', e.target.value)} aria-label="Sanadan (yaratilgan)" label="Sanadan" />
-        <Input type="date" value={filters.dateTo} onChange={(e) => setFilter('dateTo', e.target.value)} aria-label="Sanagacha (yaratilgan)" label="Sanagacha" />
+        <Input type="date" value={filters.dateFrom} onChange={(e) => setFilter('dateFrom', e.target.value)} aria-label={t('ja.jobs.dateFromAria')} label={t('ja.jobs.dateFrom')} />
+        <Input type="date" value={filters.dateTo} onChange={(e) => setFilter('dateTo', e.target.value)} aria-label={t('ja.jobs.dateToAria')} label={t('ja.jobs.dateTo')} />
       </div>
 
       <div className="mt-5 space-y-3">
@@ -128,11 +132,11 @@ export function JobsPage() {
             <Spinner className="size-7 text-blue-600" />
           </div>
         ) : jobsQuery.isError ? (
-          <Alert tone="error">{getApiError(jobsQuery.error).message}</Alert>
+          <Alert tone="error">{localizeApiError(getApiError(jobsQuery.error).code, t)}</Alert>
         ) : jobs.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[var(--border-1)] py-16 text-[var(--text-2)]">
             <Briefcase className="size-8 text-[var(--text-3)]" />
-            <p className="text-sm">{filters.search || filters.status ? 'Ish topilmadi' : "Hozircha ishlar yo'q"}</p>
+            <p className="text-sm">{filters.search || filters.status ? t('ja.jobs.notFound') : t('ja.jobs.empty')}</p>
           </div>
         ) : (
           jobs.map((job) => (
@@ -154,7 +158,7 @@ export function JobsPage() {
                   {job.make} {job.model} · {job.customerName} · {displayPhone(job.customerPhone)}
                 </p>
                 <p className="mt-0.5 text-xs text-[var(--text-2)]">
-                  {job.branchName} · {new Date(job.createdAt).toLocaleDateString('uz-UZ')}
+                  {job.branchName} · {fmtD(job.createdAt)}
                 </p>
               </div>
               <ChevronsRight className="size-5 shrink-0 text-[var(--text-3)]" />

@@ -9,9 +9,12 @@ import { Spinner } from '../../components/ui/Spinner';
 import * as vehiclesApi from '../../api/vehicles.api';
 import { getApiError } from '../../api/client';
 import { displayPhone } from '../../lib/phone';
+import { useT } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
 
 export function VehiclesPage() {
   const navigate = useNavigate();
+  const t = useT();
 
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -43,19 +46,17 @@ export function VehiclesPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <div>
-        <h1 className="text-xl font-bold text-[var(--text-1)]">Avtomobillar</h1>
-        <p className="mt-1 text-sm text-[var(--text-2)]">
-          Davlat raqami, VIN yoki marka bo'yicha qidiring. Yangi avtomobil mijoz sahifasidan qo'shiladi.
-        </p>
+        <h1 className="text-xl font-bold text-[var(--text-1)]">{t('m.vehicles.title')}</h1>
+        <p className="mt-1 text-sm text-[var(--text-2)]">{t('m.vehicles.subtitle')}</p>
       </div>
 
       <div className="mt-5">
         <Input
-          placeholder="01 A 123 BC, VIN yoki marka..."
+          placeholder={t('m.vehicles.searchPlaceholder')}
           leftIcon={<Search className="size-[18px]" />}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          aria-label="Avtomobil qidirish"
+          aria-label={t('m.vehicles.searchAria')}
         />
       </div>
 
@@ -66,12 +67,12 @@ export function VehiclesPage() {
           </div>
         )}
 
-        {vehiclesQuery.isError && <Alert tone="error">{getApiError(vehiclesQuery.error).message}</Alert>}
+        {vehiclesQuery.isError && <Alert tone="error">{localizeApiError(getApiError(vehiclesQuery.error).code, t)}</Alert>}
 
         {vehiclesQuery.data && vehiclesQuery.data.vehicles.length === 0 && (
           <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[var(--border-1)] py-16 text-[var(--text-2)]">
             <Car className="size-8" />
-            <p className="text-sm">{debouncedSearch ? 'Avtomobil topilmadi' : "Hozircha avtomobillar yo'q"}</p>
+            <p className="text-sm">{debouncedSearch ? t('m.vehicles.notFound') : t('m.vehicles.empty')}</p>
           </div>
         )}
 
@@ -103,18 +104,16 @@ export function VehiclesPage() {
 
       {total > 25 && (
         <div className="mt-5 flex items-center justify-between">
-          <p className="text-sm text-[var(--text-2)]">
-            Jami {total} ta · {page}/{totalPages}-sahifa
-          </p>
+          <p className="text-sm text-[var(--text-2)]">{t('m.list.pageSummary', { total, page, totalPages })}</p>
           <div className="flex gap-2">
-            <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label="Oldingi sahifa">
+            <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label={t('ui.pagination.prev')}>
               <ChevronLeft className="size-4" />
             </Button>
             <Button
               variant="secondary"
               disabled={page >= totalPages}
               onClick={() => setPage((p) => p + 1)}
-              aria-label="Keyingi sahifa"
+              aria-label={t('ui.pagination.next')}
             >
               <ChevronRight className="size-4" />
             </Button>

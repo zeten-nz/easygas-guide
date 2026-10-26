@@ -96,7 +96,8 @@ test.describe('catalog', () => {
 
     // Filter to the seeded category (searchable combobox) → deterministic set, paginated (>25).
     await pickCombo(page, "Kategoriya bo'yicha filtr", CAT);
-    await expect(page.getByText(new RegExp(`Jami\\s*${PRODUCT_COUNT}\\s*mahsulot`))).toBeVisible();
+    // Count-agnostic pagination summary: "Jami: {total} · {from}–{to}".
+    await expect(page.getByText(new RegExp(`Jami:\\s*${PRODUCT_COUNT}\\s*·\\s*1–25`))).toBeVisible();
     await page.getByLabel('Keyingi sahifa').click();
     await expect(page).toHaveURL(/page=2/);
 

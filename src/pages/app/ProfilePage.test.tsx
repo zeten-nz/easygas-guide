@@ -1,6 +1,7 @@
 import { test, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderWithProviders } from '../../test/utils';
+import { I18nProvider } from '../../i18n/i18n';
 
 vi.mock('../../api/users.api', () => ({ fetchOwnProfile: vi.fn() }));
 import { fetchOwnProfile } from '../../api/users.api';
@@ -25,7 +26,7 @@ const profile = {
 
 test('shows the own-profile identity, a truthful no-branch state, and a password-change path', async () => {
   mock.mockResolvedValue(profile);
-  renderWithProviders(<ProfilePage />);
+  renderWithProviders(<I18nProvider><ProfilePage /></I18nProvider>);
   expect(await screen.findByText('Jasur Karimov')).toBeInTheDocument();
   expect(screen.getByText('+998 90 123 45 67')).toBeInTheDocument();
   expect(screen.getByText('Filial biriktirilmagan')).toBeInTheDocument();
@@ -34,7 +35,7 @@ test('shows the own-profile identity, a truthful no-branch state, and a password
 
 test('shows an error state when the profile cannot be loaded', async () => {
   mock.mockRejectedValueOnce(new Error('offline'));
-  renderWithProviders(<ProfilePage />);
+  renderWithProviders(<I18nProvider><ProfilePage /></I18nProvider>);
   expect(await screen.findByText(/Kutilmagan xatolik|offline/i)).toBeInTheDocument();
   expect(screen.queryByText('Jasur Karimov')).not.toBeInTheDocument();
 });

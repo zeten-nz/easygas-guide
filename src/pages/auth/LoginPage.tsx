@@ -13,6 +13,9 @@ import { useAuth } from '../../features/auth/auth-context';
 import * as authApi from '../../api/auth.api';
 import { getApiError } from '../../api/client';
 import { formatNationalPhone, toE164 } from '../../lib/phone';
+import { useT } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
+import { fieldError } from '../../i18n/form';
 
 interface FormValues {
   phone: string;
@@ -24,7 +27,10 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { setUser } = useAuth();
-  const [serverError, setServerError] = useState<string | null>(null);
+  const t = useT();
+  // Store the STABLE error code (not a translated string) so a visible error
+  // re-translates when the language changes.
+  const [errorCode, setErrorCode] = useState<string | null>(null);
 
   const {
     register,
@@ -47,11 +53,11 @@ export function LoginPage() {
       const from = (location.state as { from?: string } | null)?.from;
       navigate(from ?? '/app', { replace: true });
     },
-    onError: (err) => setServerError(getApiError(err).message),
+    onError: (err) => setErrorCode(getApiError(err).code ?? 'UNKNOWN'),
   });
 
   const onSubmit = (values: FormValues) => {
-    setServerError(null);
+    setErrorCode(null);
     const phone = toE164(values.phone);
     if (!phone) return;
     loginMutation.mutate({ phone, password: values.password, rememberMe: values.rememberMe });
@@ -61,55 +67,55 @@ export function LoginPage() {
     <AuthLayout
       footer={
         <>
-          Hisobingiz yo'qmi?{' '}
-          <Link to="/register" className="font-semibold text-brand-400 transition-colors hover:text-brand-300">
-            Ro'yxatdan o'tish
+          {t('login.noAccount')}{' '}
+          <Link to="/register" className="font-semibold text-brand-600 transition-colors hover:text-brand-700">
+            {t('login.registerLink')}
           </Link>
         </>
       }
     >
-      <h1 className="text-xl font-bold text-[var(--text-1)]">Tizimga kirish</h1>
-      <p className="mt-1 text-sm text-[var(--text-2)]">Telefon raqamingiz va parolingizni kiriting</p>
+      <h1 className="text-xl font-bold text-[var(--text-1)]">{t('login.title')}</h1>
+      <p className="mt-1 text-sm text-[var(--text-2)]">{t('login.subtitle')}</p>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-6 space-y-4">
-        {serverError && <Alert tone="error">{serverError}</Alert>}
+        {errorCode && <Alert tone="error">{localizeApiError(errorCode, t)}</Alert>}
 
         <Input
-          label="Telefon raqam"
+          label={t('auth.field.phone')}
           type="tel"
           inputMode="numeric"
           autoComplete="tel-national"
-          placeholder="90 123 45 67"
+          placeholder={t('auth.field.phonePlaceholder')}
           leftIcon={<Phone className="size-[18px]" />}
           prefix="+998"
-          error={errors.phone?.message}
+          error={fieldError(errors.phone?.message, t)}
           {...register('phone', {
-            required: 'Telefon raqam kiritilishi shart',
-            validate: (v) => toE164(v) !== null || "Telefon raqam to'liq emas",
+            required: 'valid.phoneRequired',
+            validate: (v) => toE164(v) !== null || 'valid.phoneInvalid',
             onChange: (e) => setValue('phone', formatNationalPhone(e.target.value)),
           })}
         />
 
         <PasswordInput
-          label="Parol"
+          label={t('auth.field.password')}
           autoComplete="current-password"
-          placeholder="Parolingiz"
-          error={errors.password?.message}
-          {...register('password', { required: 'Parol kiritilishi shart' })}
+          placeholder={t('auth.field.passwordPlaceholder')}
+          error={fieldError(errors.password?.message, t)}
+          {...register('password', { required: 'valid.passwordRequired' })}
         />
 
         <div className="flex items-center justify-between pt-1">
-          <Checkbox label="Meni eslab qol" {...register('rememberMe')} />
+          <Checkbox label={t('login.rememberMe')} {...register('rememberMe')} />
           <Link
             to="/forgot-password"
-            className="text-sm font-medium text-brand-400 transition-colors hover:text-brand-300"
+            className="text-sm font-medium text-brand-600 transition-colors hover:text-brand-700"
           >
-            Parolni unutdingizmi?
+            {t('login.forgot')}
           </Link>
         </div>
 
         <Button type="submit" size="lg" loading={loginMutation.isPending} className="w-full">
-          Kirish
+          {t('login.submit')}
         </Button>
       </form>
     </AuthLayout>

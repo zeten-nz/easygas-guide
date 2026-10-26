@@ -11,6 +11,9 @@ import * as usersApi from '../../api/users.api';
 import { getApiError } from '../../api/client';
 import { displayPhone } from '../../lib/phone';
 import type { UserDetail } from '../../types/auth';
+import { useT, useLocale } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
+import { fieldError } from '../../i18n/form';
 
 interface FormValues {
   currentPassword: string;
@@ -24,6 +27,8 @@ interface FormValues {
  * temporary password is shown ONCE and is never stored, logged, or cached.
  */
 export function ResetPasswordModal({ target, onClose }: { target: UserDetail; onClose: () => void }) {
+  const t = useT();
+  const { locale } = useLocale();
   const queryClient = useQueryClient();
   const [copied, setCopied] = useState(false);
 
@@ -55,42 +60,41 @@ export function ResetPasswordModal({ target, onClose }: { target: UserDetail; on
   }
 
   return (
-    <Modal open onClose={onClose} title="Vaqtinchalik parol yaratish">
+    <Modal open onClose={onClose} title={t('au.resetPw.title')}>
       {result ? (
         <div className="space-y-4">
           <div className="flex items-start gap-2.5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3.5">
             <ShieldAlert className="mt-0.5 size-[18px] shrink-0 text-emerald-500" />
             <p className="text-[13px] leading-relaxed text-[var(--text-2)]">
-              <b className="text-[var(--text-1)]">
-                {target.firstName} {target.lastName}
-              </b>{' '}
-              uchun vaqtinchalik parol yaratildi. Uni <b className="text-[var(--text-1)]">faqat shu tasdiqlangan xodimga</b>{' '}
-              shaxsan yuboring. Xodim birinchi kirishda uni almashtiradi.
+              {t('au.resetPw.createdFor', { name: `${target.firstName} ${target.lastName}` })}{' '}
+              <b className="text-[var(--text-1)]">{t('au.resetPw.onlyThisEmployee')}</b>{' '}
+              {t('au.resetPw.sendPersonally')}
             </p>
           </div>
 
           <div>
-            <p className="mb-1.5 text-[13px] font-medium text-[var(--text-2)]">Vaqtinchalik parol</p>
+            <p className="mb-1.5 text-[13px] font-medium text-[var(--text-2)]">{t('au.users.tempPassword')}</p>
             <div className="flex items-center gap-2">
               <code className="flex-1 select-all rounded-xl border border-[var(--border-1)] bg-[var(--field-bg)] px-3.5 py-3 font-mono text-lg font-bold tracking-wide text-[var(--text-1)]">
                 {result.temporaryPassword}
               </code>
-              <Button type="button" variant="secondary" onClick={() => void copyTemp()} aria-label="Nusxa olish">
+              <Button type="button" variant="secondary" onClick={() => void copyTemp()} aria-label={t('au.resetPw.copyAria')}>
                 {copied ? <Check className="size-4 text-emerald-500" /> : <Copy className="size-4" />}
               </Button>
             </div>
             <p className="mt-2 flex items-center gap-1.5 text-[13px] text-amber-600">
               <AlertTriangle className="size-4" />
-              Bu parol faqat hozir ko'rsatiladi — oynani yopgach, uni qayta ko'rib bo'lmaydi.
+              {t('au.resetPw.shownOnce')}
             </p>
             <p className="mt-1 text-[13px] text-[var(--text-2)]">
-              Amal qilish muddati: {new Date(result.expiresAt).toLocaleString('uz-UZ')}. Xodimning barcha faol
-              sessiyalari bekor qilindi.
+              {t('au.resetPw.expiresAt', {
+                date: new Date(result.expiresAt).toLocaleString(locale === 'ru' ? 'ru-RU' : 'uz-UZ'),
+              })}
             </p>
           </div>
 
           <Button type="button" className="w-full" onClick={onClose}>
-            Yopish
+            {t('common.close')}
           </Button>
         </div>
       ) : (
@@ -102,41 +106,42 @@ export function ResetPasswordModal({ target, onClose }: { target: UserDetail; on
           <div className="flex items-start gap-2.5 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5">
             <KeyRound className="mt-0.5 size-[18px] shrink-0 text-amber-500" />
             <p className="text-[13px] leading-relaxed text-[var(--text-2)]">
-              Faqat <b className="text-[var(--text-1)]">@EasygasGarantbot</b> orqali kelgan so'rovni tasdiqlaganingizdan
-              so'ng bajaring. Bu amal{' '}
+              {t('au.resetPw.warnBefore')}{' '}
+              <b className="text-[var(--text-1)]">@EasygasGarantbot</b>
+              {t('au.resetPw.warnMid')}{' '}
               <b className="text-[var(--text-1)]">
                 {target.firstName} {target.lastName}
-              </b>{' '}
-              ({displayPhone(target.phone)}) ning barcha sessiyalarini bekor qiladi.
+              </b>
+              {t('au.resetPw.warnAfter', { phone: displayPhone(target.phone) })}
             </p>
           </div>
 
-          {mutation.isError && <Alert tone="error">{getApiError(mutation.error).message}</Alert>}
+          {mutation.isError && <Alert tone="error">{localizeApiError(getApiError(mutation.error).code, t)}</Alert>}
 
           <PasswordInput
-            label="Tasdiqlash uchun joriy parolingiz"
+            label={t('au.resetPw.currentPwLabel')}
             autoComplete="current-password"
-            placeholder="O'z parolingiz"
-            error={errors.currentPassword?.message}
-            {...register('currentPassword', { required: 'Parolingizni kiriting' })}
+            placeholder={t('au.resetPw.currentPwPlaceholder')}
+            error={fieldError(errors.currentPassword?.message, t)}
+            {...register('currentPassword', { required: 'au.resetPw.currentPwRequired' })}
           />
           <Input
-            label="Sabab"
-            placeholder="Masalan: xodim telefonini almashtirdi va parolni unutdi"
-            error={errors.reason?.message}
+            label={t('au.resetPw.reasonLabel')}
+            placeholder={t('au.resetPw.reasonPlaceholder')}
+            error={fieldError(errors.reason?.message, t)}
             {...register('reason', {
-              required: 'Sabab kiritilishi shart',
-              minLength: { value: 5, message: "Kamida 5 ta belgi" },
-              maxLength: { value: 500, message: '500 belgidan oshmasin' },
+              required: 'au.resetPw.reasonRequired',
+              minLength: { value: 5, message: 'au.resetPw.reasonMin' },
+              maxLength: { value: 500, message: 'au.resetPw.reasonMax' },
             })}
           />
 
           <div className="flex gap-2 pt-1">
             <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>
-              Bekor qilish
+              {t('common.cancel')}
             </Button>
             <Button type="submit" className="flex-1" loading={mutation.isPending}>
-              Vaqtinchalik parol yaratish
+              {t('au.resetPw.title')}
             </Button>
           </div>
         </form>

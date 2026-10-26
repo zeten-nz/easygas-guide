@@ -16,6 +16,8 @@ import { useTableParams } from '../../lib/useTableParams';
 import { can } from '../../lib/permissions';
 import { formatUZS } from '../../lib/money';
 import { getApiError } from '../../api/client';
+import { useT } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
 import * as catalogApi from '../../api/catalog.api';
 import { RefCombobox } from '../../components/catalog/RefCombobox';
 import type { Product } from '../../types/catalog';
@@ -23,6 +25,7 @@ import { ProductFormModal } from './ProductFormModal';
 import { PriceHistoryModal } from './PriceHistoryModal';
 
 export function ProductsPanel() {
+  const t = useT();
   const { user: actor } = useAuth();
   const queryClient = useQueryClient();
   const canManage = can(actor, 'catalog.manage');
@@ -39,8 +42,8 @@ export function ProductsPanel() {
   }
   useEffect(() => {
     if (searchInput === filters.search) return;
-    const t = setTimeout(() => setFilter('search', searchInput.trim(), true), 350);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setFilter('search', searchInput.trim(), true), 350);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchInput]);
 
@@ -77,21 +80,21 @@ export function ProductsPanel() {
   const statusMutation = useMutation({
     mutationFn: (p: Product) => (p.status === 'ACTIVE' ? catalogApi.archiveProduct(p.id) : catalogApi.reactivateProduct(p.id)),
     onSuccess: (_d, p) => {
-      toast.success(p.status === 'ACTIVE' ? 'Mahsulot arxivlandi' : 'Mahsulot faollashtirildi');
+      toast.success(p.status === 'ACTIVE' ? t('cat.product.toast.archived') : t('cat.product.toast.activated'));
       queryClient.invalidateQueries({ queryKey: ['catalog', 'products'] });
     },
-    onError: (err) => toast.error(getApiError(err).message),
+    onError: (err) => toast.error(localizeApiError(getApiError(err).code, t)),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (p: Product) => catalogApi.deleteProduct(p.id),
     onSuccess: () => {
-      toast.success("Mahsulot o'chirildi");
+      toast.success(t('cat.product.toast.deleted'));
       queryClient.invalidateQueries({ queryKey: ['catalog', 'products'] });
       setDeleteTarget(null);
     },
     onError: (err) => {
-      toast.error(getApiError(err).message);
+      toast.error(localizeApiError(getApiError(err).code, t));
       setDeleteTarget(null);
     },
   });
@@ -99,7 +102,7 @@ export function ProductsPanel() {
   return (
     <div>
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <p className="text-sm text-[var(--text-2)]">Mahsulotlar narx bazasi. Import qilingan narxlar boshlang'ich — tasdiqlanishi kerak; har bir narxning manbasi ko'rsatiladi.</p>
+        <p className="text-sm text-[var(--text-2)]">{t('cat.products.desc')}</p>
         {canManage && (
           <Button
             onClick={() => {
@@ -107,53 +110,53 @@ export function ProductsPanel() {
               setFormOpen(true);
             }}
           >
-            <Plus className="size-4" /> Yangi mahsulot
+            <Plus className="size-4" /> {t('cat.product.new')}
           </Button>
         )}
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Input
-          placeholder="Kod yoki nom…"
+          placeholder={t('cat.search.placeholder')}
           leftIcon={<Search className="size-[18px]" />}
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
-          aria-label="Qidiruv"
+          aria-label={t('cat.search.aria')}
         />
         <RefCombobox
           kind="companies"
-          ariaLabel="Kompaniya bo'yicha filtr"
-          placeholder="Barcha kompaniyalar"
+          ariaLabel={t('cat.filter.company.aria')}
+          placeholder={t('cat.filter.company.all')}
           allowClear
           value={filters.companyId ? Number(filters.companyId) : null}
           onChange={(v) => setFilter('companyId', v ? String(v) : '')}
         />
         <RefCombobox
           kind="product-categories"
-          ariaLabel="Kategoriya bo'yicha filtr"
-          placeholder="Barcha kategoriyalar"
+          ariaLabel={t('cat.filter.category.aria')}
+          placeholder={t('cat.filter.category.all')}
           allowClear
           value={filters.categoryId ? Number(filters.categoryId) : null}
           onChange={(v) => setFilter('categoryId', v ? String(v) : '')}
         />
-        <Select value={filters.status} onChange={(e) => setFilter('status', e.target.value)} aria-label="Holat bo'yicha filtr">
-          <option value="">Barcha holatlar</option>
-          <option value="ACTIVE">Faol</option>
-          <option value="ARCHIVED">Arxivlangan</option>
+        <Select value={filters.status} onChange={(e) => setFilter('status', e.target.value)} aria-label={t('cat.filter.status.aria')}>
+          <option value="">{t('cat.filter.status.all')}</option>
+          <option value="ACTIVE">{t('cat.status.active')}</option>
+          <option value="ARCHIVED">{t('cat.status.archived')}</option>
         </Select>
       </div>
 
       <div className="mt-4 flex items-center gap-2 text-sm">
-        <label className="text-[var(--text-2)]">Saralash:</label>
-        <Select value={filters.sort} onChange={(e) => setFilter('sort', e.target.value)} aria-label="Saralash maydoni" className="max-w-[180px]">
-          <option value="">Nom bo'yicha</option>
-          <option value="code">Kod</option>
-          <option value="price">Narx</option>
-          <option value="updatedAt">Yangilangan</option>
+        <label className="text-[var(--text-2)]">{t('cat.sort.label')}</label>
+        <Select value={filters.sort} onChange={(e) => setFilter('sort', e.target.value)} aria-label={t('cat.sort.field.aria')} className="max-w-[180px]">
+          <option value="">{t('cat.sort.byName')}</option>
+          <option value="code">{t('cat.field.code')}</option>
+          <option value="price">{t('cat.field.price')}</option>
+          <option value="updatedAt">{t('cat.sort.updated')}</option>
         </Select>
-        <Select value={filters.order} onChange={(e) => setFilter('order', e.target.value)} aria-label="Saralash tartibi" className="max-w-[140px]">
-          <option value="">O'sish</option>
-          <option value="desc">Kamayish</option>
+        <Select value={filters.order} onChange={(e) => setFilter('order', e.target.value)} aria-label={t('cat.sort.order.aria')} className="max-w-[140px]">
+          <option value="">{t('cat.sort.asc')}</option>
+          <option value="desc">{t('cat.sort.desc')}</option>
         </Select>
       </div>
 
@@ -164,14 +167,14 @@ export function ProductsPanel() {
           </div>
         ) : query.isError ? (
           <div className="p-4">
-            <Alert tone="error">{getApiError(query.error).message}</Alert>
+            <Alert tone="error">{localizeApiError(getApiError(query.error).code, t)}</Alert>
           </div>
         ) : rows.length === 0 ? (
           <div className="flex flex-col items-center gap-3 px-6 py-20 text-center text-[var(--text-2)]">
             <Package className="size-8 text-[var(--text-3)]" />
             <div>
-              <p className="font-medium text-[var(--text-1)]">Mahsulot topilmadi</p>
-              <p className="mt-1 text-sm">Qidiruv yoki filtrlarni o'zgartirib ko'ring.</p>
+              <p className="font-medium text-[var(--text-1)]">{t('cat.products.empty.title')}</p>
+              <p className="mt-1 text-sm">{t('cat.empty.hint')}</p>
             </div>
           </div>
         ) : (
@@ -179,12 +182,12 @@ export function ProductsPanel() {
             <table className="hidden w-full text-sm sm:table">
               <thead>
                 <tr className="border-b border-[var(--border-1)] text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-3)]">
-                  <th className="px-4 py-3">Mahsulot</th>
-                  <th className="px-4 py-3">Kompaniya</th>
-                  <th className="px-4 py-3">Kategoriya</th>
-                  <th className="px-4 py-3 text-right">Narx</th>
-                  <th className="px-4 py-3">Holat</th>
-                  {canManage && <th className="px-4 py-3 text-right">Amallar</th>}
+                  <th className="px-4 py-3">{t('cat.th.product')}</th>
+                  <th className="px-4 py-3">{t('cat.field.company')}</th>
+                  <th className="px-4 py-3">{t('cat.field.category')}</th>
+                  <th className="px-4 py-3 text-right">{t('cat.field.price')}</th>
+                  <th className="px-4 py-3">{t('cat.field.status')}</th>
+                  {canManage && <th className="px-4 py-3 text-right">{t('cat.th.actions')}</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-1)]">
@@ -246,24 +249,25 @@ export function ProductsPanel() {
 
       <ConfirmDialog
         open={!!deleteTarget}
-        title="Mahsulotni o'chirish"
-        confirmLabel="O'chirish"
+        title={t('cat.product.delete.title')}
+        confirmLabel={t('cat.action.delete')}
         danger
         loading={deleteMutation.isPending}
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
         onCancel={() => setDeleteTarget(null)}
       >
-        <b>{deleteTarget?.name}</b> butunlay o'chiriladi. Bu amalni bekor qilib bo'lmaydi. Agar keyinchalik kerak bo'lishi mumkin bo'lsa, uni <b>arxivlang</b>.
+        <b>{deleteTarget?.name}</b> {t('cat.product.delete.body')}
       </ConfirmDialog>
     </div>
   );
 }
 
 function StatusPill({ status }: { status: 'ACTIVE' | 'ARCHIVED' }) {
+  const t = useT();
   return status === 'ACTIVE' ? (
-    <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">Faol</span>
+    <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">{t('cat.status.active')}</span>
   ) : (
-    <span className="rounded-full bg-[var(--surface-2)] px-2.5 py-0.5 text-xs font-semibold text-[var(--text-2)]">Arxivlangan</span>
+    <span className="rounded-full bg-[var(--surface-2)] px-2.5 py-0.5 text-xs font-semibold text-[var(--text-2)]">{t('cat.status.archived')}</span>
   );
 }
 
@@ -280,12 +284,13 @@ function RowActions({
   onHistory: () => void;
   onDelete: () => void;
 }) {
+  const t = useT();
   const navigate = useNavigate();
   return (
     <DropdownMenu
       align="end"
       button={
-        <button type="button" aria-label={`${p.name} — amallar`} className="inline-flex size-9 items-center justify-center rounded-lg text-[var(--text-2)] hover:bg-[var(--surface-2)] hover:text-[var(--text-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
+        <button type="button" aria-label={t('cat.rowActions.aria', { name: p.name })} className="inline-flex size-9 items-center justify-center rounded-lg text-[var(--text-2)] hover:bg-[var(--surface-2)] hover:text-[var(--text-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
           <MoreHorizontal className="size-5" />
         </button>
       }
@@ -293,19 +298,19 @@ function RowActions({
       {(close) => (
         <>
           <MenuItem icon={<UserRound className="size-[18px]" />} onClick={() => { close(); navigate(`/app/catalog/products/${p.id}`); }}>
-            Batafsil
+            {t('cat.action.details')}
           </MenuItem>
           <MenuItem icon={<Pencil className="size-[18px]" />} onClick={() => { close(); onEdit(); }}>
-            Tahrirlash
+            {t('cat.action.edit')}
           </MenuItem>
           <MenuItem icon={<History className="size-[18px]" />} onClick={() => { close(); onHistory(); }}>
-            Narx tarixi
+            {t('cat.field.priceHistory')}
           </MenuItem>
           <MenuItem icon={p.status === 'ACTIVE' ? <Archive className="size-[18px]" /> : <ArchiveRestore className="size-[18px]" />} onClick={() => { close(); onStatus(); }}>
-            {p.status === 'ACTIVE' ? 'Arxivlash' : 'Faollashtirish'}
+            {p.status === 'ACTIVE' ? t('cat.action.archive') : t('cat.action.activate')}
           </MenuItem>
           <MenuItem icon={<Trash2 className="size-[18px]" />} danger onClick={() => { close(); onDelete(); }}>
-            O'chirish
+            {t('cat.action.delete')}
           </MenuItem>
         </>
       )}

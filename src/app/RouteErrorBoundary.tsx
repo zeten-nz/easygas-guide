@@ -1,9 +1,11 @@
 import { Component, type ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { useT, type TFunc } from '../i18n/i18n';
 
 interface Props {
   children: ReactNode;
+  t: TFunc;
 }
 interface State {
   error: Error | null;
@@ -15,8 +17,11 @@ interface State {
  * NEVER renders a stack trace or internal path to the user. A chunk-load failure
  * offers a page reload (the natural fix for a stale bundle); any other error
  * offers an in-place retry that remounts the subtree.
+ *
+ * A class component cannot use hooks, so the localized `t` is injected by the
+ * functional wrapper exported below.
  */
-export class RouteErrorBoundary extends Component<Props, State> {
+class RouteErrorBoundaryInner extends Component<Props, State> {
   state: State = { error: null };
 
   static getDerivedStateFromError(error: Error): State {
@@ -37,6 +42,7 @@ export class RouteErrorBoundary extends Component<Props, State> {
 
   render(): ReactNode {
     if (!this.state.error) return this.props.children;
+    const { t } = this.props;
 
     const chunk = this.isChunkError();
     return (
@@ -45,27 +51,31 @@ export class RouteErrorBoundary extends Component<Props, State> {
           <AlertTriangle className="size-6" aria-hidden />
         </span>
         <h2 className="mt-4 text-lg font-bold text-[var(--text-1)]">
-          {chunk ? 'Yangi versiya mavjud' : 'Nimadir noto’g’ri ketdi'}
+          {chunk ? t('routeError.chunkTitle') : t('routeError.genericTitle')}
         </h2>
         <p className="mt-1 max-w-sm text-sm text-[var(--text-2)]">
-          {chunk
-            ? 'Ilova yangilangan. Sahifani qayta yuklab, davom eting.'
-            : 'Ushbu bo’limni ko’rsatishda xatolik yuz berdi. Qayta urinib ko’ring.'}
+          {chunk ? t('routeError.chunkBody') : t('routeError.genericBody')}
         </p>
         <div className="mt-4">
           {chunk ? (
             <Button onClick={() => window.location.reload()}>
               <RefreshCw className="size-4" />
-              Qayta yuklash
+              {t('common.reload')}
             </Button>
           ) : (
             <Button onClick={this.reset}>
               <RefreshCw className="size-4" />
-              Qayta urinish
+              {t('common.retry')}
             </Button>
           )}
         </div>
       </div>
     );
   }
+}
+
+/** Functional wrapper: injects the localized `t` into the class boundary. */
+export function RouteErrorBoundary({ children }: { children: ReactNode }) {
+  const t = useT();
+  return <RouteErrorBoundaryInner t={t}>{children}</RouteErrorBoundaryInner>;
 }

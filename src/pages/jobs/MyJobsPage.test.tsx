@@ -2,6 +2,7 @@ import { test, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test/utils';
+import { I18nProvider } from '../../i18n/i18n';
 
 // Mock the safety API so the screen renders deterministically.
 vi.mock('../../api/safety.api', () => ({ myJobs: vi.fn() }));
@@ -13,7 +14,7 @@ beforeEach(() => mockMyJobs.mockReset());
 
 test('shows a loading state, then the assigned jobs list', async () => {
   mockMyJobs.mockResolvedValue({ items: [{ id: 7, status: 'IN_PROGRESS', cycle: 1, assignment_status: 'ASSIGNED', plate_number: '01A123BC', customer_name: 'Ali' }], total: 1 });
-  renderWithProviders(<MyJobsPage />);
+  renderWithProviders(<I18nProvider><MyJobsPage /></I18nProvider>);
   expect(screen.getByTestId('my-jobs-loading')).toBeInTheDocument();
   expect(await screen.findByText('01A123BC')).toBeInTheDocument();
   expect(screen.getByText('Ali')).toBeInTheDocument();
@@ -21,7 +22,7 @@ test('shows a loading state, then the assigned jobs list', async () => {
 
 test('shows an empty state when no jobs are assigned', async () => {
   mockMyJobs.mockResolvedValue({ items: [], total: 0 });
-  renderWithProviders(<MyJobsPage />);
+  renderWithProviders(<I18nProvider><MyJobsPage /></I18nProvider>);
   expect(await screen.findByText(/hali ish biriktirilmagan/i)).toBeInTheDocument();
 });
 
@@ -36,7 +37,7 @@ test('renders a routed error state, retry refetches, and produces NO unhandled r
   const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
   try {
     mockMyJobs.mockRejectedValueOnce(new Error('network down'));
-    renderWithProviders(<MyJobsPage />);
+    renderWithProviders(<I18nProvider><MyJobsPage /></I18nProvider>);
 
     // User-friendly error state with a retry affordance (no raw error text).
     expect(await screen.findByRole('alert')).toBeInTheDocument();
@@ -63,6 +64,6 @@ test('renders a routed error state, retry refetches, and produces NO unhandled r
 
 test('flags a LEGACY_UNASSIGNED job distinctly', async () => {
   mockMyJobs.mockResolvedValue({ items: [{ id: 9, status: 'IN_PROGRESS', cycle: 1, assignment_status: 'LEGACY_UNASSIGNED', plate_number: '01B', customer_name: 'X' }], total: 1 });
-  renderWithProviders(<MyJobsPage />);
+  renderWithProviders(<I18nProvider><MyJobsPage /></I18nProvider>);
   expect(await screen.findByText(/eski \(biriktirilmagan\)/i)).toBeInTheDocument();
 });

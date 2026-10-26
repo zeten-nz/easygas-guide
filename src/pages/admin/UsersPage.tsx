@@ -21,9 +21,13 @@ import { fetchBranches } from '../../api/branches.api';
 import { getApiError } from '../../api/client';
 import { can } from '../../lib/permissions';
 import { displayPhone } from '../../lib/phone';
-import { ROLE_CODES, ROLE_LABELS, type RoleCode, type UserDetail } from '../../types/auth';
+import { ROLE_CODES, type RoleCode, type UserDetail } from '../../types/auth';
+import { useT } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
+import { roleLabel } from '../../i18n/labels';
 
 export function UsersPage() {
+  const t = useT();
   const { user: actor } = useAuth();
   const queryClient = useQueryClient();
   const { page, pageSize, filters, setPage, setPageSize, setFilter } = useTableParams(
@@ -42,8 +46,8 @@ export function UsersPage() {
   }
   useEffect(() => {
     if (searchInput === filters.search) return;
-    const t = setTimeout(() => setFilter('search', searchInput.trim(), true), 350);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setFilter('search', searchInput.trim(), true), 350);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchInput]);
 
@@ -87,12 +91,12 @@ export function UsersPage() {
     mutationFn: (target: UserDetail) =>
       target.status === 'ACTIVE' ? usersApi.blockUser(target.id) : usersApi.unblockUser(target.id),
     onSuccess: (_data, target) => {
-      toast.success(target.status === 'ACTIVE' ? 'Xodim bloklandi' : 'Xodim blokdan chiqarildi');
+      toast.success(target.status === 'ACTIVE' ? t('au.users.toast.blocked') : t('au.users.toast.unblocked'));
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       setBlockTarget(null);
     },
     onError: (err) => {
-      toast.error(getApiError(err).message);
+      toast.error(localizeApiError(getApiError(err).code, t));
       setBlockTarget(null);
     },
   });
@@ -103,9 +107,9 @@ export function UsersPage() {
     <div>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-1)]">Xodimlar</h1>
+          <h1 className="text-2xl font-bold text-[var(--text-1)]">{t('au.users.title')}</h1>
           <p className="mt-1 text-sm text-[var(--text-2)]">
-            {canFilterBranch ? 'Barcha filiallar xodimlarini boshqaring' : "O'z filialingiz xodimlari"}
+            {canFilterBranch ? t('au.users.subtitleAll') : t('au.users.subtitleOwn')}
           </p>
         </div>
         {can(actor, 'users.create') && (
@@ -116,7 +120,7 @@ export function UsersPage() {
             }}
           >
             <Plus className="size-4" />
-            Yangi xodim
+            {t('au.users.new')}
           </Button>
         )}
       </div>
@@ -124,23 +128,23 @@ export function UsersPage() {
       {/* Filters */}
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Input
-          placeholder="Ism, familiya yoki telefon…"
+          placeholder={t('au.users.searchPlaceholder')}
           leftIcon={<Search className="size-[18px]" />}
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
-          aria-label="Qidiruv"
+          aria-label={t('au.users.searchAria')}
         />
-        <Select value={filters.role} onChange={(e) => setFilter('role', e.target.value)} aria-label="Rol bo'yicha filtr">
-          <option value="">Barcha rollar</option>
+        <Select value={filters.role} onChange={(e) => setFilter('role', e.target.value)} aria-label={t('au.users.filterRoleAria')}>
+          <option value="">{t('au.users.allRoles')}</option>
           {ROLE_CODES.map((code) => (
             <option key={code} value={code}>
-              {ROLE_LABELS[code]}
+              {roleLabel(code, t)}
             </option>
           ))}
         </Select>
         {canFilterBranch && (
-          <Select value={filters.branchId} onChange={(e) => setFilter('branchId', e.target.value)} aria-label="Filial bo'yicha filtr">
-            <option value="">Barcha filiallar</option>
+          <Select value={filters.branchId} onChange={(e) => setFilter('branchId', e.target.value)} aria-label={t('au.users.filterBranchAria')}>
+            <option value="">{t('au.users.allBranches')}</option>
             {(branchesQuery.data ?? []).map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
@@ -148,10 +152,10 @@ export function UsersPage() {
             ))}
           </Select>
         )}
-        <Select value={filters.status} onChange={(e) => setFilter('status', e.target.value)} aria-label="Holat bo'yicha filtr">
-          <option value="">Barcha holatlar</option>
-          <option value="ACTIVE">Faol</option>
-          <option value="BLOCKED">Bloklangan</option>
+        <Select value={filters.status} onChange={(e) => setFilter('status', e.target.value)} aria-label={t('au.users.filterStatusAria')}>
+          <option value="">{t('au.users.allStatuses')}</option>
+          <option value="ACTIVE">{t('au.userStatus.active')}</option>
+          <option value="BLOCKED">{t('au.userStatus.blocked')}</option>
         </Select>
       </div>
 
@@ -162,14 +166,14 @@ export function UsersPage() {
           </div>
         ) : usersQuery.isError ? (
           <div className="p-4">
-            <Alert tone="error">{getApiError(usersQuery.error).message}</Alert>
+            <Alert tone="error">{localizeApiError(getApiError(usersQuery.error).code, t)}</Alert>
           </div>
         ) : rows.length === 0 ? (
           <div className="flex flex-col items-center gap-3 px-6 py-20 text-center text-[var(--text-2)]">
             <Users className="size-8 text-[var(--text-3)]" />
             <div>
-              <p className="font-medium text-[var(--text-1)]">Xodim topilmadi</p>
-              <p className="mt-1 text-sm">Qidiruv yoki filtrlarni o'zgartirib ko'ring.</p>
+              <p className="font-medium text-[var(--text-1)]">{t('au.users.emptyTitle')}</p>
+              <p className="mt-1 text-sm">{t('au.users.emptyHint')}</p>
             </div>
           </div>
         ) : (
@@ -178,11 +182,11 @@ export function UsersPage() {
             <table className="hidden w-full text-sm sm:table">
               <thead>
                 <tr className="border-b border-[var(--border-1)] text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-3)]">
-                  <th className="px-4 py-3 font-semibold">Xodim</th>
-                  <th className="px-4 py-3 font-semibold">Rol</th>
-                  <th className="px-4 py-3 font-semibold">Filial</th>
-                  <th className="px-4 py-3 font-semibold">Holat</th>
-                  {canManage && <th className="px-4 py-3 text-right font-semibold">Amallar</th>}
+                  <th className="px-4 py-3 font-semibold">{t('au.users.colEmployee')}</th>
+                  <th className="px-4 py-3 font-semibold">{t('au.users.colRole')}</th>
+                  <th className="px-4 py-3 font-semibold">{t('au.users.colBranch')}</th>
+                  <th className="px-4 py-3 font-semibold">{t('au.users.colStatus')}</th>
+                  {canManage && <th className="px-4 py-3 text-right font-semibold">{t('au.users.colActions')}</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-1)]">
@@ -200,7 +204,7 @@ export function UsersPage() {
                     <td className="px-4 py-3">
                       <RoleBadge role={u.role} />
                     </td>
-                    <td className="px-4 py-3 text-[var(--text-2)]">{u.branchName ?? 'Filialsiz'}</td>
+                    <td className="px-4 py-3 text-[var(--text-2)]">{u.branchName ?? t('au.users.noBranch')}</td>
                     <td className="px-4 py-3">
                       <StatusBadge status={u.status} />
                     </td>
@@ -238,7 +242,7 @@ export function UsersPage() {
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <RoleBadge role={u.role} />
                       <StatusBadge status={u.status} />
-                      <span className="text-xs text-[var(--text-3)]">{u.branchName ?? 'Filialsiz'}</span>
+                      <span className="text-xs text-[var(--text-3)]">{u.branchName ?? t('au.users.noBranch')}</span>
                     </div>
                   </div>
                   {canManage && (
@@ -281,8 +285,8 @@ export function UsersPage() {
 
       <ConfirmDialog
         open={!!blockTarget}
-        title={blockTarget?.status === 'ACTIVE' ? 'Xodimni bloklash' : 'Blokdan chiqarish'}
-        confirmLabel={blockTarget?.status === 'ACTIVE' ? 'Bloklash' : 'Blokdan chiqarish'}
+        title={blockTarget?.status === 'ACTIVE' ? t('au.users.blockTitle') : t('au.users.unblock')}
+        confirmLabel={blockTarget?.status === 'ACTIVE' ? t('au.users.block') : t('au.users.unblock')}
         danger={blockTarget?.status === 'ACTIVE'}
         loading={blockMutation.isPending}
         onConfirm={() => blockTarget && blockMutation.mutate(blockTarget)}
@@ -293,15 +297,14 @@ export function UsersPage() {
             <b>
               {blockTarget?.firstName} {blockTarget?.lastName}
             </b>{' '}
-            bloklanadi: barcha faol sessiyalari darhol bekor qilinadi va tizimga kira olmaydi. Keyinchalik blokdan
-            chiqarish mumkin.
+            {t('au.users.blockBody')}
           </>
         ) : (
           <>
             <b>
               {blockTarget?.firstName} {blockTarget?.lastName}
             </b>{' '}
-            blokdan chiqariladi va yana tizimga kira oladi.
+            {t('au.users.unblockBody')}
           </>
         )}
       </ConfirmDialog>
@@ -323,6 +326,7 @@ function RowActions({
   onReset: () => void;
   onBlock: () => void;
 }) {
+  const t = useT();
   const { user: actor } = useAuth();
   const navigate = useNavigate();
   const isSelf = u.id === actorId;
@@ -332,7 +336,7 @@ function RowActions({
       button={
         <button
           type="button"
-          aria-label={`${u.firstName} ${u.lastName} — amallar`}
+          aria-label={t('au.users.rowActionsAria', { name: `${u.firstName} ${u.lastName}` })}
           className="inline-flex size-9 items-center justify-center rounded-lg text-[var(--text-2)] hover:bg-[var(--surface-2)] hover:text-[var(--text-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
         >
           <MoreHorizontal className="size-5" />
@@ -348,7 +352,7 @@ function RowActions({
               navigate(`/app/admin/users/${u.id}`);
             }}
           >
-            Profilni ko'rish
+            {t('au.users.viewProfile')}
           </MenuItem>
           {can(actor, 'users.update') && (
             <MenuItem
@@ -358,7 +362,7 @@ function RowActions({
                 onEdit();
               }}
             >
-              Tahrirlash
+              {t('au.action.edit')}
             </MenuItem>
           )}
           {can(actor, 'users.reset_password') && !isSelf && (
@@ -369,7 +373,7 @@ function RowActions({
                 onReset();
               }}
             >
-              Vaqtinchalik parol
+              {t('au.users.tempPassword')}
             </MenuItem>
           )}
           {can(actor, 'users.block') && !isSelf && (
@@ -381,7 +385,7 @@ function RowActions({
                 onBlock();
               }}
             >
-              {u.status === 'ACTIVE' ? 'Bloklash' : 'Blokdan chiqarish'}
+              {u.status === 'ACTIVE' ? t('au.users.block') : t('au.users.unblock')}
             </MenuItem>
           )}
         </>

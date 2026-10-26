@@ -28,8 +28,12 @@ import * as jobsApi from '../../api/jobs.api';
 import { getApiError } from '../../api/client';
 import { can } from '../../lib/permissions';
 import { displayPhone } from '../../lib/phone';
+import { useT, useDateTime } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
 
 export function JobDetailPage() {
+  const t = useT();
+  const fmtDt = useDateTime();
   const { id } = useParams();
   const jobId = Number(id);
   const { user: actor } = useAuth();
@@ -52,18 +56,18 @@ export function JobDetailPage() {
   const cancelMutation = useMutation({
     mutationFn: () => jobsApi.cancelJob(jobId, cancelReason.trim()),
     onSuccess: () => {
-      toast.success('Ish bekor qilindi');
+      toast.success(t('ja.detail.toastCancelled'));
       invalidate();
       setCancelOpen(false);
     },
     onError: (err) => {
-      toast.error(getApiError(err).message);
+      toast.error(localizeApiError(getApiError(err).code, t));
       setCancelOpen(false);
     },
   });
 
   if (!Number.isInteger(jobId) || jobId <= 0) {
-    return <Alert tone="error">Ish topilmadi</Alert>;
+    return <Alert tone="error">{t('ja.jobs.notFound')}</Alert>;
   }
 
   if (jobQuery.isLoading) {
@@ -77,10 +81,10 @@ export function JobDetailPage() {
   if (jobQuery.isError) {
     return (
       <div className="mx-auto max-w-3xl space-y-4">
-        <Alert tone="error">{getApiError(jobQuery.error).message}</Alert>
+        <Alert tone="error">{localizeApiError(getApiError(jobQuery.error).code, t)}</Alert>
         <Link to="/app/jobs" className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-500">
           <ArrowLeft className="size-4" />
-          Ishlar ro'yxatiga qaytish
+          {t('ja.detail.backToList')}
         </Link>
       </div>
     );
@@ -98,27 +102,27 @@ export function JobDetailPage() {
         className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--text-2)] transition-colors hover:text-[var(--text-1)]"
       >
         <ArrowLeft className="size-4" />
-        Ishlar
+        {t('ja.jobs.title')}
       </Link>
 
       {/* Identity header */}
       <div className="mt-4 rounded-3xl border border-[var(--border-1)] bg-[var(--surface)] p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-[var(--text-1)]">Ish #{job.id}</h1>
+            <h1 className="text-2xl font-bold text-[var(--text-1)]">{t('ja.detail.title', { id: job.id })}</h1>
             <JobStatusBadge status={job.status} />
           </div>
           <div className="flex gap-2">
             {showStart && (
               <Button onClick={() => setStartOpen(true)}>
                 <Play className="size-4" />
-                Ishni boshlash
+                {t('ja.detail.start')}
               </Button>
             )}
             {showCancel && (
               <Button variant="danger-outline" onClick={() => setCancelOpen(true)}>
                 <XCircle className="size-4" />
-                Bekor qilish
+                {t('common.cancel')}
               </Button>
             )}
           </div>
@@ -126,7 +130,7 @@ export function JobDetailPage() {
 
         {job.status === 'CANCELLED' && job.cancelReason && (
           <Alert tone="error" className="mt-4">
-            Bekor qilingan{job.cancelledByName ? ` (${job.cancelledByName})` : ''}: {job.cancelReason}
+            {t('ja.detail.cancelledPrefix')}{job.cancelledByName ? ` (${job.cancelledByName})` : ''}: {job.cancelReason}
           </Alert>
         )}
 
@@ -135,7 +139,7 @@ export function JobDetailPage() {
           <div className="rounded-2xl bg-[var(--surface-2)] p-4">
             <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-2)]">
               <UserRound className="size-3.5" />
-              Mijoz
+              {t('ja.create.reviewCustomer')}
             </p>
             <Link
               to={`/app/customers/${job.customerId}`}
@@ -150,7 +154,7 @@ export function JobDetailPage() {
           <div className="rounded-2xl bg-[var(--surface-2)] p-4">
             <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-2)]">
               <Car className="size-3.5" />
-              Avtomobil
+              {t('ja.create.reviewVehicle')}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <span className="rounded-lg border border-[var(--border-1)] bg-[var(--surface)] px-2.5 py-1 font-mono text-sm font-bold tracking-wider text-[var(--text-1)]">
@@ -173,13 +177,13 @@ export function JobDetailPage() {
           </span>
           <span className="inline-flex items-center gap-1.5">
             <UserRound className="size-3.5" />
-            Ochdi: {job.createdByName}
+            {t('ja.detail.createdBy', { name: job.createdByName })}
           </span>
           <span className="inline-flex items-center gap-1.5">
             <Gauge className="size-3.5" />
-            {new Date(job.createdAt).toLocaleString('uz-UZ')}
+            {fmtDt(job.createdAt)}
           </span>
-          {job.startedAt && <span>Boshlangan: {new Date(job.startedAt).toLocaleString('uz-UZ')}</span>}
+          {job.startedAt && <span>{t('ja.detail.startedAt', { date: fmtDt(job.startedAt) })}</span>}
         </div>
       </div>
 
@@ -195,7 +199,7 @@ export function JobDetailPage() {
 
       {/* Checklist workspace (Phase 5) */}
       <div className="mt-6">
-        <h2 className="mb-3 text-lg font-bold text-[var(--text-1)]">Texnik checklist</h2>
+        <h2 className="mb-3 text-lg font-bold text-[var(--text-1)]">{t('ja.detail.checklistHeading')}</h2>
         <ChecklistSection job={job} />
       </div>
 
@@ -231,27 +235,26 @@ export function JobDetailPage() {
       <Modal
         open={cancelOpen}
         onClose={cancelMutation.isPending ? () => {} : () => setCancelOpen(false)}
-        title="Ishni bekor qilish"
+        title={t('ja.detail.cancelModalTitle')}
         className="sm:max-w-md"
       >
         <p className="text-sm text-[var(--text-2)]">
-          <b className="text-[var(--text-1)]">#{job.id}</b> — {job.plateNumber} bo'yicha ish bekor qilinadi. Bu holatni
-          keyin o'zgartirib bo'lmaydi.
+          <b className="text-[var(--text-1)]">#{job.id}</b> {t('ja.detail.cancelBody', { plate: job.plateNumber })}
         </p>
         <label className="mt-4 block">
-          <span className="mb-1.5 block text-[13px] font-medium text-[var(--text-2)]">Bekor qilish sababi (majburiy)</span>
+          <span className="mb-1.5 block text-[13px] font-medium text-[var(--text-2)]">{t('ja.detail.cancelReasonLabel')}</span>
           <textarea
             value={cancelReason}
             onChange={(e) => setCancelReason(e.target.value)}
             rows={2}
             maxLength={500}
-            placeholder="Masalan: mijoz xizmatdan voz kechdi"
+            placeholder={t('ja.detail.cancelReasonPlaceholder')}
             className="w-full rounded-xl border border-[var(--field-border)] bg-[var(--field-bg)] px-3.5 py-2.5 text-sm text-[var(--text-1)] outline-none transition-colors placeholder:text-[var(--field-placeholder)] focus:border-brand-500/70 focus:ring-2 focus:ring-brand-500/25"
           />
         </label>
         <div className="mt-4 flex justify-end gap-3">
           <Button variant="ghost" onClick={() => setCancelOpen(false)} disabled={cancelMutation.isPending}>
-            Ortga
+            {t('ja.detail.cancelBack')}
           </Button>
           <Button
             variant="danger-outline"
@@ -259,7 +262,7 @@ export function JobDetailPage() {
             loading={cancelMutation.isPending}
             disabled={cancelReason.trim().length < 3}
           >
-            Bekor qilishni tasdiqlash
+            {t('ja.detail.cancelConfirm')}
           </Button>
         </div>
       </Modal>

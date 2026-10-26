@@ -20,13 +20,16 @@ import { Spinner } from '../../../components/ui/Spinner';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { StepFormModal } from './StepFormModal';
 import { DeleteTemplateDialog } from './DeleteTemplateDialog';
-import { STATUS_LABEL } from './template-lifecycle';
+import { statusLabel } from './template-lifecycle';
 import * as templatesApi from '../../../api/templates.api';
 import { getApiError } from '../../../api/client';
+import { useT } from '../../../i18n/i18n';
+import { localizeApiError } from '../../../i18n/api-errors';
 import { type TemplateStep, type TemplateVersion } from '../../../types/entities';
 import { cn } from '../../../lib/utils';
 
 export function TemplateDetailPage() {
+  const t = useT();
   const { id } = useParams();
   const templateId = Number(id);
   const navigate = useNavigate();
@@ -51,12 +54,12 @@ export function TemplateDetailPage() {
   const publishMutation = useMutation({
     mutationFn: (versionId: number) => templatesApi.publishVersion(templateId, versionId),
     onSuccess: () => {
-      toast.success('Versiya nashr qilindi — endi yangi ishlarga biriktiriladi');
+      toast.success(t('tpl.toast.published'));
       invalidate();
       setPublishTarget(null);
     },
     onError: (err) => {
-      toast.error(getApiError(err).message);
+      toast.error(localizeApiError(getApiError(err).code, t));
       setPublishTarget(null);
     },
   });
@@ -64,25 +67,25 @@ export function TemplateDetailPage() {
   const archiveMutation = useMutation({
     mutationFn: (versionId: number) => templatesApi.archiveVersion(templateId, versionId),
     onSuccess: () => {
-      toast.success('Versiya arxivlandi');
+      toast.success(t('tpl.toast.archived'));
       invalidate();
       setArchiveTarget(null);
     },
     onError: (err) => {
-      toast.error(getApiError(err).message);
+      toast.error(localizeApiError(getApiError(err).code, t));
       setArchiveTarget(null);
     },
   });
 
   const newVersionMutation = useMutation({
     mutationFn: () => templatesApi.createVersion(templateId),
-    onSuccess: (t) => {
-      toast.success('Yangi qoralama versiya yaratildi (bosqichlar nusxalandi)');
+    onSuccess: (created) => {
+      toast.success(t('tpl.toast.versionCreated'));
       invalidate();
-      const draft = t.versions.find((v) => v.status === 'DRAFT');
+      const draft = created.versions.find((v) => v.status === 'DRAFT');
       if (draft) setSelectedVersionId(draft.id);
     },
-    onError: (err) => toast.error(getApiError(err).message),
+    onError: (err) => toast.error(localizeApiError(getApiError(err).code, t)),
   });
 
   const stepMutation = useMutation({
@@ -91,12 +94,12 @@ export function TemplateDetailPage() {
         ? templatesApi.deleteStep(templateId, selectedVersion!.id, stepId)
         : templatesApi.moveStep(templateId, selectedVersion!.id, stepId, action),
     onSuccess: (_t, vars) => {
-      if (vars.action === 'delete') toast.success("Bosqich o'chirildi");
+      if (vars.action === 'delete') toast.success(t('tpl.toast.stepDeleted'));
       invalidate();
       setDeleteTarget(null);
     },
     onError: (err) => {
-      toast.error(getApiError(err).message);
+      toast.error(localizeApiError(getApiError(err).code, t));
       setDeleteTarget(null);
     },
   });
@@ -112,10 +115,12 @@ export function TemplateDetailPage() {
   if (templateQuery.isError || !templateQuery.data) {
     return (
       <div className="mx-auto max-w-3xl space-y-4">
-        <Alert tone="error">{templateQuery.error ? getApiError(templateQuery.error).message : 'Shablon topilmadi'}</Alert>
+        <Alert tone="error">
+          {templateQuery.error ? localizeApiError(getApiError(templateQuery.error).code, t) : t('tpl.notFound')}
+        </Alert>
         <Link to="/app/admin/templates" className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-500">
           <ArrowLeft className="size-4" />
-          Shablonlar
+          {t('tpl.templates')}
         </Link>
       </div>
     );
@@ -137,7 +142,7 @@ export function TemplateDetailPage() {
         className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--text-2)] transition-colors hover:text-[var(--text-1)]"
       >
         <ArrowLeft className="size-4" />
-        Shablonlar
+        {t('tpl.templates')}
       </Link>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
@@ -149,7 +154,7 @@ export function TemplateDetailPage() {
           {!hasDraft && (
             <Button variant="secondary" onClick={() => newVersionMutation.mutate()} loading={newVersionMutation.isPending}>
               <Plus className="size-4" />
-              Yangi versiya
+              {t('tpl.newVersion')}
             </Button>
           )}
           {/* §D whole-template delete — only for an unused draft-only template. When
@@ -157,17 +162,14 @@ export function TemplateDetailPage() {
           {template.deletable && (
             <Button variant="danger-outline" onClick={() => setDeleteTemplateOpen(true)}>
               <Trash2 className="size-4" />
-              Shablonni o'chirish
+              {t('tpl.deleteTemplate')}
             </Button>
           )}
         </div>
       </div>
 
       {!template.deletable && (
-        <p className="mt-2 text-[13px] text-[var(--text-3)]">
-          Bu shablon nashr qilingan yoki arxivlangan versiyaga ega — uni o'chirib bo'lmaydi (tarixiy ishlar himoyasi).
-          Kelajakdagi tanlovdan chiqarish uchun faol versiyani arxivlang.
-        </p>
+        <p className="mt-2 text-[13px] text-[var(--text-3)]">{t('tpl.detail.notDeletableNote')}</p>
       )}
 
       {/* Version tabs */}
@@ -185,7 +187,7 @@ export function TemplateDetailPage() {
             )}
           >
             v{v.version}
-            <span className="ml-1.5 text-xs font-medium opacity-80">{STATUS_LABEL[v.status]}</span>
+            <span className="ml-1.5 text-xs font-medium opacity-80">{statusLabel(v.status, t)}</span>
           </button>
         ))}
       </div>
@@ -195,11 +197,11 @@ export function TemplateDetailPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="font-bold text-[var(--text-1)]">
-                v{selectedVersion.version} · {STATUS_LABEL[selectedVersion.status]}
+                v{selectedVersion.version} · {statusLabel(selectedVersion.status, t)}
               </p>
               <p className="mt-0.5 text-sm text-[var(--text-2)]">
-                {selectedVersion.steps?.length ?? 0} ta bosqich
-                {!isDraft && " · o'zgartirib bo'lmaydi (tarixiy ishlar himoyasi)"}
+                {t('tpl.detail.stepCount', { n: selectedVersion.steps?.length ?? 0 })}
+                {!isDraft && t('tpl.detail.readonlySuffix')}
               </p>
             </div>
             <div className="flex gap-2">
@@ -213,18 +215,18 @@ export function TemplateDetailPage() {
                     }}
                   >
                     <Plus className="size-4" />
-                    Bosqich
+                    {t('tpl.step.add')}
                   </Button>
                   <Button onClick={() => setPublishTarget(selectedVersion)}>
                     <Rocket className="size-4" />
-                    Nashr qilish
+                    {t('tpl.action.publish')}
                   </Button>
                 </>
               )}
               {selectedVersion.status === 'PUBLISHED' && (
                 <Button variant="danger-outline" onClick={() => setArchiveTarget(selectedVersion)}>
                   <Archive className="size-4" />
-                  Arxivlash
+                  {t('tpl.action.archive')}
                 </Button>
               )}
             </div>
@@ -233,7 +235,7 @@ export function TemplateDetailPage() {
           <div className="mt-4 space-y-2">
             {(selectedVersion.steps ?? []).length === 0 && (
               <p className="rounded-2xl border border-dashed border-[var(--border-1)] py-8 text-center text-sm text-[var(--text-2)]">
-                Bu versiyada hali bosqichlar yo'q
+                {t('tpl.detail.noSteps')}
               </p>
             )}
 
@@ -281,7 +283,7 @@ export function TemplateDetailPage() {
                         size="md"
                         disabled={idx === 0 || stepMutation.isPending}
                         onClick={() => stepMutation.mutate({ stepId: step.id, action: 'up', versionId: selectedVersion.id })}
-                        aria-label="Yuqoriga"
+                        aria-label={t('tpl.aria.moveUp')}
                       >
                         <ArrowUp className="size-4" />
                       </Button>
@@ -290,7 +292,7 @@ export function TemplateDetailPage() {
                         size="md"
                         disabled={idx === arr.length - 1 || stepMutation.isPending}
                         onClick={() => stepMutation.mutate({ stepId: step.id, action: 'down', versionId: selectedVersion.id })}
-                        aria-label="Pastga"
+                        aria-label={t('tpl.aria.moveDown')}
                       >
                         <ArrowDown className="size-4" />
                       </Button>
@@ -301,11 +303,11 @@ export function TemplateDetailPage() {
                           setEditStep(step);
                           setStepFormOpen(true);
                         }}
-                        aria-label="Tahrirlash"
+                        aria-label={t('tpl.aria.edit')}
                       >
                         <Pencil className="size-4" />
                       </Button>
-                      <Button variant="ghost" size="md" onClick={() => setDeleteTarget(step)} aria-label="O'chirish">
+                      <Button variant="ghost" size="md" onClick={() => setDeleteTarget(step)} aria-label={t('tpl.action.delete')}>
                         <Trash2 className="size-4 text-brand-500" />
                       </Button>
                     </div>
@@ -332,32 +334,31 @@ export function TemplateDetailPage() {
 
       <ConfirmDialog
         open={!!publishTarget}
-        title="Versiyani nashr qilish"
-        confirmLabel="Nashr qilish"
+        title={t('tpl.publish.title')}
+        confirmLabel={t('tpl.action.publish')}
         loading={publishMutation.isPending}
         onConfirm={() => publishTarget && publishMutation.mutate(publishTarget.id)}
         onCancel={() => setPublishTarget(null)}
       >
-        <b>v{publishTarget?.version}</b> nashr qilinadi va yangi ishlarga biriktiriladigan faol versiya bo'ladi. Nashrdan
-        so'ng bu versiyani o'zgartirib bo'lmaydi. Avvalgi faol versiya arxivlanadi (eski ishlar o'z versiyasini saqlaydi).
+        <b>v{publishTarget?.version}</b> {t('tpl.publish.body')}
       </ConfirmDialog>
 
       <ConfirmDialog
         open={!!archiveTarget}
-        title="Versiyani arxivlash"
-        confirmLabel="Arxivlash"
+        title={t('tpl.archive.title')}
+        confirmLabel={t('tpl.action.archive')}
         danger
         loading={archiveMutation.isPending}
         onConfirm={() => archiveTarget && archiveMutation.mutate(archiveTarget.id)}
         onCancel={() => setArchiveTarget(null)}
       >
-        <b>v{archiveTarget?.version}</b> arxivlanadi va yangi ishlarga biriktirilmaydi. Mavjud ishlarga ta'sir qilmaydi.
+        <b>v{archiveTarget?.version}</b> {t('tpl.archive.body')}
       </ConfirmDialog>
 
       <ConfirmDialog
         open={!!deleteTarget}
-        title="Bosqichni o'chirish"
-        confirmLabel="O'chirish"
+        title={t('tpl.deleteStep.title')}
+        confirmLabel={t('tpl.action.delete')}
         danger
         loading={stepMutation.isPending}
         onConfirm={() =>
@@ -365,7 +366,7 @@ export function TemplateDetailPage() {
         }
         onCancel={() => setDeleteTarget(null)}
       >
-        «{deleteTarget?.name}» bosqichi qoralamadan o'chiriladi.
+        {t('tpl.deleteStep.body', { name: deleteTarget?.name ?? '' })}
       </ConfirmDialog>
 
       {deleteTemplateOpen && (

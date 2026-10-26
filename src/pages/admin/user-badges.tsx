@@ -1,6 +1,8 @@
 import { CheckCircle2, CircleSlash } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { ROLE_LABELS, type RoleCode, type UserStatus } from '../../types/auth';
+import { useT } from '../../i18n/i18n';
+import { roleLabel } from '../../i18n/labels';
+import type { RoleCode, UserStatus } from '../../types/auth';
 
 const ROLE_COLORS: Record<RoleCode, string> = {
   USTA: 'bg-sky-500/12 text-sky-700',
@@ -11,24 +13,26 @@ const ROLE_COLORS: Record<RoleCode, string> = {
 };
 
 export function RoleBadge({ role }: { role: RoleCode }) {
+  const t = useT();
   return (
     <span className={cn('inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold', ROLE_COLORS[role])}>
-      {ROLE_LABELS[role]}
+      {roleLabel(role, t)}
     </span>
   );
 }
 
 /** Status as icon + text (never colour alone). */
 export function StatusBadge({ status }: { status: UserStatus }) {
+  const t = useT();
   return status === 'ACTIVE' ? (
     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/12 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
       <CheckCircle2 className="size-3.5" />
-      Faol
+      {t('au.userStatus.active')}
     </span>
   ) : (
     <span className="inline-flex items-center gap-1 rounded-full bg-ink-500/12 px-2.5 py-0.5 text-xs font-semibold text-ink-600">
       <CircleSlash className="size-3.5" />
-      Bloklangan
+      {t('au.userStatus.blocked')}
     </span>
   );
 }

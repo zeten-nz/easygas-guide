@@ -1,6 +1,7 @@
 import { test, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderWithProviders } from '../../test/utils';
+import { I18nProvider } from '../../i18n/i18n';
 
 let currentUser: { permissions: string[] } = { permissions: ['catalog.view', 'catalog.manage'] };
 vi.mock('../../features/auth/auth-context', () => ({ useAuth: () => ({ user: currentUser }) }));
@@ -49,7 +50,7 @@ beforeEach(() => {
 
 test('renders a product row with an exactly-formatted price and a profile link', async () => {
   currentUser = { permissions: ['catalog.view', 'catalog.manage'] };
-  renderWithProviders(<ProductsPanel />);
+  renderWithProviders(<I18nProvider><ProductsPanel /></I18nProvider>);
   const links = await screen.findAllByRole('link', { name: "Yong'ilg'i filtri" });
   expect(links[0]).toHaveAttribute('href', '/app/catalog/products/42');
   expect(screen.getAllByText("1 500 000 so'm").length).toBeGreaterThan(0);
@@ -57,14 +58,14 @@ test('renders a product row with an exactly-formatted price and a profile link',
 
 test('the manage (Yangi mahsulot) action is shown for catalog.manage', async () => {
   currentUser = { permissions: ['catalog.view', 'catalog.manage'] };
-  renderWithProviders(<ProductsPanel />);
+  renderWithProviders(<I18nProvider><ProductsPanel /></I18nProvider>);
   await screen.findAllByRole('link', { name: "Yong'ilg'i filtri" });
   expect(screen.getByRole('button', { name: /yangi mahsulot/i })).toBeInTheDocument();
 });
 
 test('a catalog.view-only role sees NO management actions', async () => {
   currentUser = { permissions: ['catalog.view'] };
-  renderWithProviders(<ProductsPanel />);
+  renderWithProviders(<I18nProvider><ProductsPanel /></I18nProvider>);
   await screen.findAllByRole('link', { name: "Yong'ilg'i filtri" });
   expect(screen.queryByRole('button', { name: /yangi mahsulot/i })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /amallar/i })).not.toBeInTheDocument();

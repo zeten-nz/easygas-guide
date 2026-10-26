@@ -11,12 +11,16 @@ import { useAuth } from '../../features/auth/auth-context';
 import { can } from '../../lib/permissions';
 import { formatUZS } from '../../lib/money';
 import { getApiError } from '../../api/client';
+import { useT, useDateTime } from '../../i18n/i18n';
+import { localizeApiError } from '../../i18n/api-errors';
 import * as catalogApi from '../../api/catalog.api';
 import { ServiceFormModal } from './ServiceFormModal';
 
-const BASIS_LABEL: Record<string, string> = { NET: 'Soliqsiz (NET)', GROSS: 'Soliq bilan (GROSS)', UNKNOWN: "Noma'lum" };
+const BASIS_KEY = { NET: 'cat.priceBasis.net', GROSS: 'cat.priceBasis.gross', UNKNOWN: 'cat.priceBasis.unknown' } as const;
 
 export function ServiceDetailPage() {
+  const t = useT();
+  const fmtDt = useDateTime();
   const { id } = useParams();
   const serviceId = Number(id);
   const navigate = useNavigate();
@@ -36,65 +40,65 @@ export function ServiceDetailPage() {
   const statusMutation = useMutation({
     mutationFn: () => (query.data!.status === 'ACTIVE' ? catalogApi.archiveService(serviceId) : catalogApi.reactivateService(serviceId)),
     onSuccess: () => {
-      toast.success('Holat yangilandi');
+      toast.success(t('cat.toast.statusUpdated'));
       queryClient.invalidateQueries({ queryKey: ['catalog', 'services'] });
     },
-    onError: (err) => toast.error(getApiError(err).message),
+    onError: (err) => toast.error(localizeApiError(getApiError(err).code, t)),
   });
   const deleteMutation = useMutation({
     mutationFn: () => catalogApi.deleteService(serviceId),
     onSuccess: () => {
-      toast.success("Xizmat o'chirildi");
+      toast.success(t('cat.service.toast.deleted'));
       queryClient.invalidateQueries({ queryKey: ['catalog', 'services'] });
       queryClient.removeQueries({ queryKey: ['catalog', 'services', 'detail', serviceId] });
       navigate('/app/catalog/services');
     },
     onError: (err) => {
-      toast.error(getApiError(err).message);
+      toast.error(localizeApiError(getApiError(err).code, t));
       setDeleteOpen(false);
     },
   });
 
   if (query.isLoading) return <div className="flex justify-center py-20"><Spinner className="size-7 text-blue-600" /></div>;
-  if (query.isError) return <Alert tone="error">{getApiError(query.error).message}</Alert>;
+  if (query.isError) return <Alert tone="error">{localizeApiError(getApiError(query.error).code, t)}</Alert>;
   const s = query.data!;
 
   return (
     <div className="mx-auto max-w-3xl">
       <Link to="/app/catalog/services" className="inline-flex items-center gap-1.5 text-sm text-[var(--text-2)] hover:text-[var(--text-1)]">
-        <ArrowLeft className="size-4" /> Narx bazasiga qaytish
+        <ArrowLeft className="size-4" /> {t('cat.detail.back')}
       </Link>
       <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-[var(--text-1)]">{s.name}</h2>
           <p className="mt-0.5 text-sm text-[var(--text-2)]">
             {s.code}
-            {s.status === 'ARCHIVED' && <span className="ml-2 rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-xs font-semibold">Arxivlangan</span>}
+            {s.status === 'ARCHIVED' && <span className="ml-2 rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-xs font-semibold">{t('cat.status.archived')}</span>}
           </p>
         </div>
         {canManage && (
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={() => setEditOpen(true)}><Pencil className="size-4" /> Tahrirlash</Button>
+            <Button variant="secondary" onClick={() => setEditOpen(true)}><Pencil className="size-4" /> {t('cat.action.edit')}</Button>
             <Button variant="secondary" onClick={() => statusMutation.mutate()} loading={statusMutation.isPending}>
-              {s.status === 'ACTIVE' ? <><Archive className="size-4" /> Arxivlash</> : <><ArchiveRestore className="size-4" /> Faollashtirish</>}
+              {s.status === 'ACTIVE' ? <><Archive className="size-4" /> {t('cat.action.archive')}</> : <><ArchiveRestore className="size-4" /> {t('cat.action.activate')}</>}
             </Button>
-            <Button variant="danger-outline" onClick={() => setDeleteOpen(true)}><Trash2 className="size-4" /> O'chirish</Button>
+            <Button variant="danger-outline" onClick={() => setDeleteOpen(true)}><Trash2 className="size-4" /> {t('cat.action.delete')}</Button>
           </div>
         )}
       </div>
 
       <dl className="mt-5 grid grid-cols-1 gap-x-6 gap-y-3 rounded-2xl border border-[var(--border-1)] bg-[var(--surface)] p-5 sm:grid-cols-2">
-        <Field label="Narx" value={<span className="font-semibold tabular-nums">{formatUZS(s.priceMinor)}</span>} />
-        <Field label="Narx asosi" value={BASIS_LABEL[s.priceBasis]} />
-        <Field label="Kategoriya" value={s.categoryName} />
-        <Field label="Davomiyligi" value={s.durationMinutes !== null ? `${s.durationMinutes} daqiqa` : '—'} />
-        <Field label="Soliq stavkasi" value={s.taxRateBp !== null ? `${s.taxRateBp / 100}%` : '—'} />
-        <Field label="Soliq bilan narx" value={s.priceInclusiveMinor !== null ? formatUZS(s.priceInclusiveMinor) : '—'} />
-        <Field label="Manba" value={s.source === 'IMPORT' ? 'Import (tasdiqlanishi kerak)' : 'Qo\'lda'} />
+        <Field label={t('cat.field.price')} value={<span className="font-semibold tabular-nums">{formatUZS(s.priceMinor)}</span>} />
+        <Field label={t('cat.field.priceBasis')} value={t(BASIS_KEY[s.priceBasis])} />
+        <Field label={t('cat.field.category')} value={s.categoryName} />
+        <Field label={t('cat.field.duration')} value={s.durationMinutes !== null ? t('cat.duration.minutes', { min: s.durationMinutes }) : '—'} />
+        <Field label={t('cat.field.taxRate')} value={s.taxRateBp !== null ? `${s.taxRateBp / 100}%` : '—'} />
+        <Field label={t('cat.field.priceInclusive')} value={s.priceInclusiveMinor !== null ? formatUZS(s.priceInclusiveMinor) : '—'} />
+        <Field label={t('cat.field.source')} value={s.source === 'IMPORT' ? t('cat.source.import') : t('cat.source.manual')} />
       </dl>
 
       <section className="mt-6">
-        <h3 className="text-sm font-semibold text-[var(--text-1)]">Narx tarixi</h3>
+        <h3 className="text-sm font-semibold text-[var(--text-1)]">{t('cat.field.priceHistory')}</h3>
         {history.isLoading ? (
           <div className="py-6"><Spinner className="size-5 text-blue-600" /></div>
         ) : history.data && history.data.length > 0 ? (
@@ -102,19 +106,19 @@ export function ServiceDetailPage() {
             {history.data.map((h) => (
               <li key={h.id} className="rounded-xl border border-[var(--border-1)] bg-[var(--surface)] p-3 text-sm">
                 <span className="font-semibold">{formatUZS(h.oldPriceMinor)} → {formatUZS(h.newPriceMinor)}</span>
-                <span className="ml-2 text-[var(--text-2)]">{new Date(h.createdAt).toLocaleString('uz-UZ')}{h.changedByName ? ` · ${h.changedByName}` : ''}{h.source === 'IMPORT' ? ' · Import' : ''}</span>
-                {h.reason && <p className="mt-1 text-[var(--text-2)]">Sabab: {h.reason}</p>}
+                <span className="ml-2 text-[var(--text-2)]">{fmtDt(h.createdAt)}{h.changedByName ? ` · ${h.changedByName}` : ''}{h.source === 'IMPORT' ? ` · ${t('cat.source.importShort')}` : ''}</span>
+                {h.reason && <p className="mt-1 text-[var(--text-2)]">{t('cat.priceHistory.reasonLabel')}: {h.reason}</p>}
               </li>
             ))}
           </ol>
         ) : (
-          <p className="mt-2 text-sm text-[var(--text-2)]">Narx hali o'zgartirilmagan.</p>
+          <p className="mt-2 text-sm text-[var(--text-2)]">{t('cat.priceHistory.emptyDetail')}</p>
         )}
       </section>
 
       {editOpen && <ServiceFormModal editService={s} onClose={() => setEditOpen(false)} />}
-      <ConfirmDialog open={deleteOpen} title="Xizmatni o'chirish" confirmLabel="O'chirish" danger loading={deleteMutation.isPending} onConfirm={() => deleteMutation.mutate()} onCancel={() => setDeleteOpen(false)}>
-        <b>{s.name}</b> butunlay o'chiriladi.
+      <ConfirmDialog open={deleteOpen} title={t('cat.service.delete.title')} confirmLabel={t('cat.action.delete')} danger loading={deleteMutation.isPending} onConfirm={() => deleteMutation.mutate()} onCancel={() => setDeleteOpen(false)}>
+        <b>{s.name}</b> {t('cat.service.deleteDetail.body')}
       </ConfirmDialog>
     </div>
   );

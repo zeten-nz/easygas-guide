@@ -5,7 +5,9 @@ import { RiskPolicyBanner } from '../../features/safety/RiskPolicyBanner';
 import { RouteFallback } from '../../app/RouteFallback';
 import { RouteErrorBoundary } from '../../app/RouteErrorBoundary';
 import { Brand } from '../../components/ui/Brand';
+import { LanguageSelector } from '../../components/ui/LanguageSelector';
 import { useAuth } from '../../features/auth/auth-context';
+import { useT } from '../../i18n/i18n';
 import { Sidebar } from './Sidebar';
 import { ProfileMenu } from './ProfileMenu';
 import { activeSectionLabel } from './nav-config';
@@ -20,6 +22,7 @@ import { activeSectionLabel } from './nav-config';
 export function AppShell() {
   const { user } = useAuth();
   const location = useLocation();
+  const t = useT();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
 
@@ -64,7 +67,7 @@ export function AppShell() {
 
   if (!user) return null;
 
-  const section = activeSectionLabel(location.pathname);
+  const sectionKey = activeSectionLabel(location.pathname);
 
   return (
     <div className="min-h-dvh bg-[var(--bg)]">
@@ -85,13 +88,13 @@ export function AppShell() {
             ref={drawerRef}
             role="dialog"
             aria-modal="true"
-            aria-label="Navigatsiya"
+            aria-label={t('nav.drawerAria')}
             className="absolute inset-y-0 left-0 w-72 max-w-[85%] border-r border-[var(--border-1)] shadow-2xl"
           >
             <button
               type="button"
               onClick={() => setDrawerOpen(false)}
-              aria-label="Menyuni yopish"
+              aria-label={t('nav.menuClose')}
               className="absolute right-3 top-4 z-10 rounded-lg p-1.5 text-[var(--text-2)] hover:bg-[var(--surface-2)] hover:text-[var(--text-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
             >
               <X className="size-5" />
@@ -108,7 +111,7 @@ export function AppShell() {
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
-              aria-label="Menyu"
+              aria-label={t('nav.menu')}
               className="inline-flex size-10 items-center justify-center rounded-lg text-[var(--text-2)] hover:bg-[var(--surface-2)] hover:text-[var(--text-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 lg:hidden"
             >
               <Menu className="size-5" />
@@ -118,11 +121,14 @@ export function AppShell() {
             <span className="lg:hidden">
               <Brand variant="wordmark" height={26} priority decorative />
             </span>
-            {section && (
-              <p className="hidden truncate text-sm font-medium text-[var(--text-2)] lg:block">{section}</p>
+            {sectionKey && (
+              <p className="hidden truncate text-sm font-medium text-[var(--text-2)] lg:block">{t(sectionKey)}</p>
             )}
           </div>
-          <ProfileMenu />
+          <div className="flex items-center gap-2">
+            <LanguageSelector />
+            <ProfileMenu />
+          </div>
         </header>
 
         <RiskPolicyBanner />

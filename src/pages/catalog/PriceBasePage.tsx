@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '../../lib/utils';
+import { useT } from '../../i18n/i18n';
 import { ProductsPanel } from './ProductsPanel';
 import { ServicesPanel } from './ServicesPanel';
 
@@ -10,19 +11,20 @@ import { ServicesPanel } from './ServicesPanel';
  * catalog.manage; catalog.view roles get a read-only view.
  */
 export function PriceBasePage() {
+  const t = useT();
   const { pathname, search } = useLocation();
   const onServices = pathname.endsWith('/services');
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-[var(--text-1)]">Narx bazasi</h1>
+      <h1 className="text-2xl font-bold text-[var(--text-1)]">{t('cat.priceBase.title')}</h1>
 
       <div className="mt-4 flex gap-1 border-b border-[var(--border-1)]">
         <Tab to={`/app/catalog/products${onServices ? '' : search}`} active={!onServices}>
-          Mahsulotlar
+          {t('cat.tab.products')}
         </Tab>
         <Tab to={`/app/catalog/services${onServices ? search : ''}`} active={onServices}>
-          Xizmatlar
+          {t('cat.tab.services')}
         </Tab>
       </div>
 
