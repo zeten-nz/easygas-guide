@@ -35,6 +35,7 @@ export const uz = {
   // ---- Auth shell -----------------------------------------------------------
   'auth.tagline': "Xavfsiz o'rnatish. Tekshirilgan ish. Ishonchli xizmat.",
   'auth.support': 'Yordam kerakmi?',
+  'auth.toGarant': "EasyGas Garant'ga o'tish",
 
   // ---- Shared auth fields / validation --------------------------------------
   'auth.field.phone': 'Telefon raqam',

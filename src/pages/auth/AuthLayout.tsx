@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
-import { Send } from 'lucide-react';
+import { ArrowLeft, Send } from 'lucide-react';
 import { Brand } from '../../components/ui/Brand';
 import { LanguageSelector } from '../../components/ui/LanguageSelector';
 import { useT } from '../../i18n/i18n';
 
 const SUPPORT_URL = import.meta.env.VITE_SUPPORT_URL ?? 'https://t.me/EasygasGarantbot';
+const GARANT_URL = import.meta.env.VITE_GARANT_URL ?? 'https://easygas-garant.uz/login';
 
 /**
  * Shared authentication shell. Uses the SAME light design language as the
@@ -37,7 +38,15 @@ export function AuthLayout({ children, footer }: { children: ReactNode; footer?:
 
           {footer && <div className="mt-6 text-center text-sm text-[var(--text-2)]">{footer}</div>}
 
-          <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex flex-wrap justify-center gap-2">
+            {/* Way back to the EasyGas Garant ERP, which links here via "Ustalar uchun qo'llanma". */}
+            <a
+              href={GARANT_URL}
+              className="inline-flex items-center gap-2 rounded-full border border-[var(--border-1)] bg-[var(--surface)] px-4 py-2 text-[13px] text-[var(--text-2)] transition-colors hover:border-blue-500/50 hover:text-[var(--text-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+            >
+              <ArrowLeft className="size-4" />
+              {t('auth.toGarant')}
+            </a>
             <a
               href={SUPPORT_URL}
               target="_blank"

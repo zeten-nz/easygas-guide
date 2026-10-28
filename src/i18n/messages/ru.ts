@@ -30,6 +30,7 @@ export const ru: Record<keyof typeof uz, string> = {
   // ---- Auth shell -----------------------------------------------------------
   'auth.tagline': 'Безопасная установка. Проверенная работа. Надёжный сервис.',
   'auth.support': 'Нужна помощь?',
+  'auth.toGarant': 'Перейти в EasyGas Garant',
 
   // ---- Shared auth fields / validation --------------------------------------
   'auth.field.phone': 'Номер телефона',
